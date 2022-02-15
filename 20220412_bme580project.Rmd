@@ -1,0 +1,128 @@
+---
+title: "BME 580 Project"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(psych) # Contains the winsor function and other helpful statistical tools
+library(tidyverse) 
+library(gridExtra)
+library(corrplot)
+```
+
+
+```{r}
+# Import CSV files
+library(readr)
+subject_info <- read_csv("Downloads/Intro to Biomedical Data Science/subject-info.csv")
+test_measure <- read_csv("Downloads/Intro to Biomedical Data Science/test_measure.csv")
+```
+
+```{r}
+# Look at head of datasets
+head(subject_info,10)
+dim(subject_info)
+```
+There are 992 rows and 8 columns in subject_info datset. 
+```{r}
+head(test_measure,10)
+dim(test_measure)
+```
+There are 575087 rows and 9 columns in test_measure datset. 
+```{r}
+lapply(subject_info,class)
+```
+```{r}
+# Add new column for BMI
+# Convert weight to lb from kg and height to inch from cm
+# BMI formula = weight(lb)/height(cm)^2 * 703
+subject_info <- subject_info %>% 
+  add_column(bmi = (subject_info$Weight*2.2/(subject_info$Height*0.393701)**2)*703)
+```
+
+```{r}
+head(subject_info,10)
+```
+```{r}
+summary(subject_info)
+```
+
+
+```{r}
+# Look for missing information
+# Percent of the total BMI observations are missing
+sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
+```
+```{r}
+#Find mean ages based on gender
+library(plyr)
+#Change gender data type from integer to character
+subject_info$Sex <-as.character(subject_info$Sex)
+age_mean <- ddply(subject_info, "Sex", summarise, grp.mean=mean(Age))
+head(age_mean)
+```
+```{r}
+# Find minimum and maximum ages based on gender
+age_range <- ddply(subject_info, "Sex", summarise, min_age=min(Age), max_age=max(Age))
+head(age_range)
+```
+
+```{r}
+# Graph density function
+age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
+  geom_density(alpha = 0.5) +
+  # Add mean lines
+  geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
+  labs(x = "Age",
+       y = "Density",
+       subtitle="Age of Female vs. Male Participants")
+# Add tickmarks for every 5 years for age 
+age_density + scale_x_continuous(breaks=seq(0, 80, 5))
+```
+```{r}
+#Summary stats for test_measure data
+summary(test_measure)
+```
+```{r}
+#Look at average speed for the 857 unique participants 
+speed_mean <- ddply(test_measure, "ID", summarise, grp.mean=mean(Speed))
+head(speed_mean,15)
+```
+```{r}
+# Speed range for each participant 
+speed_range <- ddply(test_measure, "ID", summarise, min_speed = min(Speed), max_speed = max(Speed))
+head(speed_range, 15)
+```
+```{r}
+# Merge 2 dataframes together based on ID
+df_merge <- merge(subject_info,test_measure,by="ID")
+```
+
+```{r}
+head(df_merge,15)
+dim(df_merge)
+```
+interaction factor between age and sex 
+males have higher performace but so do ppl in certain age 
+build composite feature that takes ahe and sex to predict performace
+data driven approach or knowledge driven
+weights age more than it weights sex or quadratic relationship 
+justify feature engineering approach
+age+sex
+
+predicting per
+exercise measurememts to prodice age
+ppl who wear wearables but diificult to predict age or gender
+
+feature engineering ti predict perfamce 
+one hot encoding convert category to numerical, be ordinal 
+
+one type of variable easier to meeasure 
+
+
