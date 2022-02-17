@@ -1,5 +1,6 @@
 ---
 title: "BME 580 Project"
+authors: "Michelle Li"
 output: html_notebook
 ---
 
@@ -39,6 +40,11 @@ There are 575087 rows and 9 columns in test_measure datset.
 lapply(subject_info,class)
 ```
 ```{r}
+lapply(test_measure,class)
+```
+
+
+```{r}
 # Add new column for BMI
 # Convert weight to lb from kg and height to inch from cm
 # BMI formula = weight(lb)/height(cm)^2 * 703
@@ -48,6 +54,7 @@ subject_info <- subject_info %>%
 
 ```{r}
 head(subject_info,10)
+dim(subject_info)
 ```
 ```{r}
 summary(subject_info)
@@ -59,6 +66,8 @@ summary(subject_info)
 # Percent of the total BMI observations are missing
 sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
 ```
+
+
 ```{r}
 #Find mean ages based on gender
 library(plyr)
@@ -90,18 +99,28 @@ age_density + scale_x_continuous(breaks=seq(0, 80, 5))
 summary(test_measure)
 ```
 ```{r}
+# Find number of tests per ID
+freq_tests = count(test_measure, vars =c('ID'))
+head(freq_tests)
+dim(freq_tests)
+```
+
+
+
+```{r}
 #Look at average speed for the 857 unique participants 
 speed_mean <- ddply(test_measure, "ID", summarise, grp.mean=mean(Speed))
 head(speed_mean,15)
 ```
+
 ```{r}
 # Speed range for each participant 
 speed_range <- ddply(test_measure, "ID", summarise, min_speed = min(Speed), max_speed = max(Speed))
 head(speed_range, 15)
 ```
 ```{r}
-# Merge 2 dataframes together based on ID
-df_merge <- merge(subject_info,test_measure,by="ID")
+# Merge 2 dataframes together based on ID_test
+df_merge <- merge(subject_info,test_measure,by="ID_test")
 ```
 
 ```{r}
@@ -115,7 +134,197 @@ data driven approach or knowledge driven
 weights age more than it weights sex or quadratic relationship 
 justify feature engineering approach
 age+sex
+```{r}
+# Find avg speed, HR, VO2, VCO2, RR based on ID and test
+df_merge$Sex <- as.numeric(df_merge$Sex)
+class(stroke_data$bmi)
+id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
+id_merged$sex <- as.character(id_merged$sex)
+class(stroke_data$bmi)
+head(id_merged)
+dim(id_merged)
+```
 
+
+```{r}
+# Find avg speed, HR, VO2, VCO2, RR based on gender
+avg_merged <- ddply(df_merge, "Sex", summarise, avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
+avg_merged$Sex <- as.character(avg_merged$Sex)
+head(avg_merged)
+```
+
+
+```{r}
+# Create box plots for avg speed, HR, VO2, and VCO2 across gender
+
+# Speed box plot
+speed_box <- ggplot(id_merged, aes(x=sex, y=avg_speed)) +
+  geom_boxplot() +
+  labs(title="Average Speed across Gender", x="Gender", y="Average Speed")
+
+# HR box plot
+HR_box <- ggplot(id_merged, aes(x=sex, y=avg_HR)) +
+  geom_boxplot() +
+  labs(title="Average HR across Gender", x="Gender", y="Average HR")
+
+# V02 box plot
+VO2_box <- ggplot(id_merged, aes(x=sex, y=avg_VO2)) +
+  geom_boxplot() +
+  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2")
+
+# VC02 box plot
+VCO2_box <- ggplot(id_merged, aes(x=sex, y=avg_VCO2)) +
+  geom_boxplot() +
+  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2")
+
+# 1x4 grid of box plots
+grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, ncol=4)
+```
+```{r}
+#Graph density function
+id_merged$sex = as.character(id_merged$sex)
+speed_density = ggplot(id_merged, aes(x=avg_speed, fill=sex, color=sex)) +
+  geom_density(alpha = 0.5) +
+  #Add mean lines
+  geom_vline(data=avg_merged, aes(xintercept=avg_speed, color=Sex), linetype="dashed") +
+  labs(x = "Average Speed",
+       y = "Density",
+       subtitle="Average Speed Based on Gender")
+speed_density
+```
+
+
+```{r}
+#Female 
+female = filter(df_merge, gender == 1)
+dim(female)
+head(female)
+
+#Male
+male = filter(df_merge, gender == 0)
+dim(male)
+
+#Uneven distr of tests, mostly male
+```
+
+```{r}
+# Find count of number of tests per speed
+freq_speed = count(test_measure, vars =c('Speed'))
+head(freq_speed)
+dim(freq_speed)
+
+freq_female_speed = count(female, vars =c('Speed'))
+head(freq_female_speed)
+dim(freq_female_speed)
+
+freq_male_speed = count(male, vars =c('Speed'))
+head(male_speed)
+dim(male_speed)
+```
+
+
+```{r}
+# Distribution of speed histogram
+bw1 <- 2 * IQR(df_merge$Speed) / length(df_merge$Speed)^(1/3)
+bw2 <- 2 * IQR(female$Speed) / length(female$Speed)^(1/3)
+bw3 <- 2 * IQR(male$Speed) / length(male$Speed)^(1/3)
+
+speed_hist <- ggplot(df_merge, aes(x=Speed)) +
+  geom_histogram(binwidth = bw1) +
+  ggtitle("Original Speed Distribution")
+
+# Female speed histogram
+female_speed <- ggplot(female, aes(x=Speed)) +
+  geom_histogram(binwidth = bw2) +
+  ggtitle("Female Speed Distriubtion")
+
+# Male speed histogram
+male_speed <- ggplot(male, aes(x=Speed)) +
+  geom_histogram(binwidth = bw3) +
+  ggtitle("Male Speed Distriubtion")
+
+# 3x1 grid of histograms
+grid.arrange(speed_hist, female_speed, male_speed, nrow=3)
+```
+```{r}
+# Look at HR at speed = 5 based on gender
+speed5 = filter(df_merge, Speed == 5)
+speed5 $Sex <-as.character(speed5$Sex)
+dim(speed5)
+head(speed5)
+```
+```{r}
+# Speed = 5, age on x, HR on y
+speed5_age_density = ggplot(speed5, aes(x=Age, fill=Sex, color=Sex)) +
+  #geom_histogram(aes(y=..density..))+ #Add density plot
+  geom_density(alpha = 0.5) +
+  # Add mean lines
+  #geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
+  labs(x = "Age",
+       y = "Density",
+       subtitle="Age of Female vs. Male Participants at Speed 5")
+# Add tickmarks for every 5 years for age 
+speed5_age_density + scale_x_continuous(breaks=seq(0, 80, 5))
+```
+
+```{r}
+# Remove all values greater than 3 standard deviations from the mean
+
+# Remove bmi outliers
+new_bmi <- subset(id_merged,  id_merged$bmi <= (3*sd(id_merged$bmi , na.rm=TRUE) + mean(id_merged$bmi , na.rm = TRUE)))
+
+# Remove age outliers
+new_age <- subset(id_merged,  id_merged$age <= (3*sd(id_merged$age , na.rm=TRUE) + mean(id_merged$age , na.rm = TRUE)))
+
+# Remove speed outliers
+new_speed <- subset(id_merged,  id_merged$avg_speed <= (3*sd(id_merged$avg_speed , na.rm=TRUE) + mean(id_merged$avg_speed , na.rm = TRUE)))
+
+# Remove HR outliers
+new_HR <- subset(id_merged,  id_merged$avg_HR <= (3*sd(id_merged$avg_HR , na.rm=TRUE) + mean(id_merged$avg_HR , na.rm = TRUE)))
+
+# Remove VO2 outliers
+new_VO2 <- subset(id_merged, id_merged$avg_VO2 <= (3*sd(id_merged$avg_VO2 , na.rm=TRUE) + mean(id_merged$avg_VO2 , na.rm = TRUE)))
+
+# Remove VCO2 outliers
+new_VCO2 <- subset(id_merged, id_merged$avg_VCO2 <= (3*sd(id_merged$avg_VCO2 , na.rm=TRUE) + mean(id_merged$avg_VCO2 , na.rm = TRUE)))
+```
+
+```{r}
+# BMI outliers
+bmi_outliers <- subset(id_merged,  id_merged$bmi > (3*sd(id_merged$bmi , na.rm=TRUE) + mean(id_merged$bmi , na.rm = TRUE)))
+nrow(bmi_outliers)
+
+# Age outliers
+age_outliers <- subset(id_merged,  id_merged$age > (3*sd(id_merged$age , na.rm=TRUE) + mean(id_merged$age , na.rm = TRUE)))
+nrow(age_outliers)
+
+# Speed outliers
+speed_outliers <- subset(id_merged, id_merged$avg_speed > (3*sd(id_merged$avg_speed, na.rm=TRUE)) + mean(id_merged$avg_speed, na.rm = TRUE))
+nrow(speed_outliers)
+
+# HR outliers
+HR_outliers <- subset(id_merged,  id_merged$avg_HR > (3*sd(id_merged$avg_HR , na.rm=TRUE) + mean(id_merged$avg_HR , na.rm = TRUE)))
+nrow(HR_outliers)
+
+# Remove VO2 outliers
+VO2_outliers <- subset(id_merged, id_merged$avg_VO2 > (3*sd(id_merged$avg_VO2 , na.rm=TRUE) + mean(id_merged$avg_VO2 , na.rm = TRUE)))
+nrow(VO2_outliers)
+
+# Remove VCO2 outliers
+VCO2_outliers <- subset(id_merged, id_merged$avg_VCO2 > (3*sd(id_merged$avg_VCO2 , na.rm=TRUE) + mean(id_merged$avg_VCO2 , na.rm = TRUE)))
+nrow(VCO2_outliers)
+```
+
+```{r}
+# Find correlation in all numeric values with are age, bmi, speed, HR, VO2, and VCO2
+# Convert stroke back to integer
+id_merged$sex <- as.integer(id_merged$sex)
+numeric_data <- id_merged[,c("sex","age","avg_speed","bmi","avg_HR","avg_VCO2","avg_VO2" )]
+matrix = cor(numeric_data, use="complete.obs")
+matrix
+corrplot(matrix, type="upper", tl.col="black", tl.srt=45)
+```
+Notes, new
 predicting per
 exercise measurememts to prodice age
 ppl who wear wearables but diificult to predict age or gender
