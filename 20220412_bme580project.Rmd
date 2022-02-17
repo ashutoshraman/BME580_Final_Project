@@ -90,11 +90,12 @@ age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
   geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
   labs(x = "Age",
        y = "Density",
-       subtitle="Age of Female vs. Male Participants")
+       subtitle="Age of Female vs. Male Participants") +
+  theme(text = element_text(size=20))
 # Add tickmarks for every 5 years for age 
 age_density + scale_x_continuous(breaks=seq(0, 80, 5))
 
-#ggsave("age_density.png")
+ggsave("age_density.png")
 ```
 ```{r}
 #Summary stats for test_measure data
@@ -160,8 +161,10 @@ speed_density = ggplot(id_merged, aes(x=avg_speed, fill=sex, color=sex)) +
   geom_vline(data=avg_merged, aes(xintercept=avg_speed, color=Sex), linetype="dashed") +
   labs(x = "Average Speed",
        y = "Density",
-       subtitle="Average Speed Based on Gender")
+       subtitle="Average Speed Based on Gender") +
+  theme(text = element_text(size=20))
 speed_density
+ggsave("speed_density.png")
 ```
 
 
@@ -292,25 +295,29 @@ nrow(VCO2_outliers)
 # Speed box plot
 speed_box <- ggplot(new_speed, aes(x=sex, y=avg_speed)) +
   geom_boxplot() +
-  labs(title="Average Speed across Gender", x="Gender", y="Average Speed (km/hr)")
+  labs(title="Average Speed across Gender", x="Gender", y="Average Speed (km/hr)") +
+  theme(text = element_text(size=20))
 ggsave("speed_box.png")
 
 # HR box plot
 HR_box <- ggplot(new_HR, aes(x=sex, y=avg_HR)) +
   geom_boxplot() +
-  labs(title="Average HR across Gender", x="Gender", y="Average HR (bpm)")
+  labs(title="Average HR across Gender", x="Gender", y="Average HR (bpm)") +
+  theme(text = element_text(size=20))
 ggsave("HR_box.png")
 
 # V02 box plot
 VO2_box <- ggplot(new_VO2, aes(x=sex, y=avg_VO2)) +
   geom_boxplot() +
-  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2 (ml/min)")
+  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2 (ml/min)") +
+  theme(text = element_text(size=20))
 ggsave("VO2_box.png")
 
 # VC02 box plot
 VCO2_box <- ggplot(new_VCO2, aes(x=sex, y=avg_VCO2)) +
   geom_boxplot() +
-  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2 (ml/min)")
+  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2 (ml/min)") +
+  theme(text = element_text(size=20))
 ggsave("VCO2_box.png")
 # 1x4 grid of box plots
 grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, ncol=4)
