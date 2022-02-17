@@ -129,18 +129,15 @@ df_merge <- merge(subject_info,test_measure,by="ID_test")
 head(df_merge,15)
 dim(df_merge)
 ```
-interaction factor between age and sex 
-males have higher performace but so do ppl in certain age 
-build composite feature that takes ahe and sex to predict performace
-data driven approach or knowledge driven
-weights age more than it weights sex or quadratic relationship 
-justify feature engineering approach
-age+sex
+```{r}
+head(df_merge)
+```
+
 ```{r}
 # Find avg speed, HR, VO2, VCO2, RR based on ID and test
 df_merge$Sex <- as.numeric(df_merge$Sex)
 class(stroke_data$bmi)
-id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
+id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
 id_merged$sex <- as.character(id_merged$sex)
 class(stroke_data$bmi)
 head(id_merged)
@@ -295,25 +292,25 @@ nrow(VCO2_outliers)
 # Speed box plot
 speed_box <- ggplot(new_speed, aes(x=sex, y=avg_speed)) +
   geom_boxplot() +
-  labs(title="Average Speed across Gender", x="Gender", y="Average Speed")
+  labs(title="Average Speed across Gender", x="Gender", y="Average Speed (km/hr)")
 ggsave("speed_box.png")
 
 # HR box plot
 HR_box <- ggplot(new_HR, aes(x=sex, y=avg_HR)) +
   geom_boxplot() +
-  labs(title="Average HR across Gender", x="Gender", y="Average HR")
+  labs(title="Average HR across Gender", x="Gender", y="Average HR (bpm)")
 ggsave("HR_box.png")
 
 # V02 box plot
 VO2_box <- ggplot(new_VO2, aes(x=sex, y=avg_VO2)) +
   geom_boxplot() +
-  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2")
+  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2 (ml/min)")
 ggsave("VO2_box.png")
 
 # VC02 box plot
 VCO2_box <- ggplot(new_VCO2, aes(x=sex, y=avg_VCO2)) +
   geom_boxplot() +
-  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2")
+  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2 (ml/min)")
 ggsave("VCO2_box.png")
 # 1x4 grid of box plots
 grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, ncol=4)
@@ -330,6 +327,22 @@ png(height=1800, width=1800, file="correlation_matrix.png")
 corrplot(matrix, type="upper", tl.col="black", tl.srt=45, tl.cex=3, cl.cex=3)
 dev.off()
 ```
+```{r}
+head(id_merged)
+```
+
+```{r}
+pairs(id_merged[,2:10], pch = 19)
+```
+```{r}
+#Look at scatterplots for speed = 5 and speed = 15
+id_merged_5 = filter(df_merge, Speed == 5)
+id_merged_5 <- ddply(id_merged_5, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
+head(id_merged_5)
+dim(id_merged_5)
+pairs(id_merged_5[,2:10], pch = 19)
+```
+
 Notes, new
 predicting per
 exercise measurememts to prodice age
