@@ -21,8 +21,8 @@ library(corrplot)
 ```{r}
 # Import CSV files
 library(readr)
-subject_info <- read_csv("Downloads/Intro to Biomedical Data Science/subject-info.csv")
-test_measure <- read_csv("Downloads/Intro to Biomedical Data Science/test_measure.csv")
+subject_info <- read_csv("BME580_Final_Project/subject-info.csv")
+test_measure <- read_csv("BME580_Final_Project/test_measure.csv")
 ```
 
 ```{r}
