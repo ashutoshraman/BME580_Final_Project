@@ -2,8 +2,20 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: Citation
-message: 'Citation for BME 580 repo '
+title: >-
+  Characterizing and Relating Age and Sex from
+  Exercise Physiology Factors Github Repo
+message: 'Citation for BME 580 final project Github '
 type: software
 authors:
   - given-names: 'Michelle Li '
+  - given-names: Ayush Shetty
+  - given-names: Ashu Raman
+  - {}
+repository: >-
+  https://github.com/ashutoshraman/BME580_Final_Project
+abstract: >-
+  In this project, we are trying to find a
+  relationship between aerobic fitness, age and sex
+  to better understand the effects of strenuous
+  exercise on different genders and age groups.
