@@ -88,13 +88,13 @@ age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
   geom_density(alpha = 0.5) +
   # Add mean lines
   geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
-  labs(x = "Age",
-       y = "Density",
-       subtitle="Age of Female vs. Male Participants") +
+  labs(title= "Age Density across Sex",
+       x = "Age (Years)",
+       y = "Density") +
   theme(text = element_text(size=20))
 # Add tickmarks for every 5 years for age 
-age_density + scale_x_continuous(breaks=seq(0, 80, 5))
-
+age_density = age_density + scale_x_continuous(breaks=seq(0, 80, 5)) + theme_bw()
+age_density
 ggsave("age_density.png")
 ```
 ```{r}
@@ -138,8 +138,8 @@ head(df_merge)
 # Find avg speed, HR, VO2, VCO2, RR based on ID and test
 df_merge$Sex <- as.numeric(df_merge$Sex)
 class(stroke_data$bmi)
-id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
-id_merged$sex <- as.character(id_merged$sex)
+id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), Sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
+id_merged$Sex <- as.character(id_merged$Sex)
 class(stroke_data$bmi)
 head(id_merged)
 dim(id_merged)
@@ -154,17 +154,29 @@ head(avg_merged)
 ```
 ```{r}
 #Graph density function
-id_merged$sex = as.character(id_merged$sex)
-speed_density = ggplot(id_merged, aes(x=avg_speed, fill=sex, color=sex)) +
+id_merged$sex = as.character(id_merged$Sex)
+speed_density = ggplot(id_merged, aes(x=avg_speed, fill=Sex, color=Sex)) +
   geom_density(alpha = 0.5) +
   #Add mean lines
   geom_vline(data=avg_merged, aes(xintercept=avg_speed, color=Sex), linetype="dashed") +
-  labs(x = "Average Speed",
-       y = "Density",
-       subtitle="Average Speed Based on Gender") +
+  labs(title ="Speed Density across Sex",
+       x = "Speed (km/hr)",
+       y = "Density") +
   theme(text = element_text(size=20))
+# Add tickmarks for every 5 years for age 
+speed_density = speed_density + scale_x_continuous(breaks=seq(0, 15, 1)) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 speed_density
 ggsave("speed_density.png")
+```
+```{r}
+# 1x2 grid speed and age density plots for proposal 
+density_grid = grid.arrange(age_density,speed_density, ncol = 1)
+ggsave("density_grid.png", density_grid)
+```
+```{r}
+library(patchwork)
+age_density + speed_density
 ```
 
 
@@ -262,6 +274,12 @@ new_VO2 <- subset(id_merged, id_merged$avg_VO2 <= (3*sd(id_merged$avg_VO2 , na.r
 
 # Remove VCO2 outliers
 new_VCO2 <- subset(id_merged, id_merged$avg_VCO2 <= (3*sd(id_merged$avg_VCO2 , na.rm=TRUE) + mean(id_merged$avg_VCO2 , na.rm = TRUE)))
+
+# Remove RR outliers
+new_RR <- subset(id_merged, id_merged$avg_RR <= (3*sd(id_merged$avg_RR , na.rm=TRUE) + mean(id_merged$avg_RR , na.rm = TRUE)))
+
+# Remove VE outliers
+new_VE <- subset(id_merged, id_merged$avg_VE <= (3*sd(id_merged$avg_VE , na.rm=TRUE) + mean(id_merged$avg_VE , na.rm = TRUE)))
 ```
 
 ```{r}
@@ -288,54 +306,102 @@ nrow(VO2_outliers)
 # VCO2 outliers
 VCO2_outliers <- subset(id_merged, id_merged$avg_VCO2 > (3*sd(id_merged$avg_VCO2 , na.rm=TRUE) + mean(id_merged$avg_VCO2 , na.rm = TRUE)))
 nrow(VCO2_outliers)
+
+# RR outliers
+RR_outliers <- subset(id_merged, id_merged$avg_RR > (3*sd(id_merged$avg_RR , na.rm=TRUE) + mean(id_merged$avg_RR , na.rm = TRUE)))
+nrow(RR_outliers)
+
+# VE outliers
+VE_outliers <- subset(id_merged, id_merged$avg_VE > (3*sd(id_merged$avg_VE , na.rm=TRUE) + mean(id_merged$avg_VE , na.rm = TRUE)))
+nrow(VE_outliers)
 ```
 ```{r}
 # Create box plots for avg speed, HR, VO2, and VCO2 across gender after removing outliers
+library(grid)
 
 # Speed box plot
 speed_box <- ggplot(new_speed, aes(x=sex, y=avg_speed)) +
   geom_boxplot() +
-  labs(title="Average Speed across Gender", x="Gender", y="Average Speed (km/hr)") +
-  theme(text = element_text(size=20))
+  labs(x="Sex", y="Speed (km/hr)") +
+  theme(text = element_text(size=15))
 ggsave("speed_box.png")
 
 # HR box plot
 HR_box <- ggplot(new_HR, aes(x=sex, y=avg_HR)) +
   geom_boxplot() +
-  labs(title="Average HR across Gender", x="Gender", y="Average HR (bpm)") +
-  theme(text = element_text(size=20))
+  labs(x="Sex", y="HR (bpm)") +
+  theme(text = element_text(size=15))
 ggsave("HR_box.png")
 
 # V02 box plot
 VO2_box <- ggplot(new_VO2, aes(x=sex, y=avg_VO2)) +
   geom_boxplot() +
-  labs(title="Average VO2 across Gender", x="Gender", y="Average VO2 (ml/min)") +
-  theme(text = element_text(size=20))
+  labs(x="Sex", y="VO2 (ml/min)") +
+  theme(text = element_text(size=15))
 ggsave("VO2_box.png")
 
 # VC02 box plot
 VCO2_box <- ggplot(new_VCO2, aes(x=sex, y=avg_VCO2)) +
   geom_boxplot() +
-  labs(title="Average VCO2 across Gender", x="Gender", y="Average VCO2 (ml/min)") +
-  theme(text = element_text(size=20))
+  labs(x="Sex", y="VCO2 (ml/min)") +
+  theme(text = element_text(size=15))
 ggsave("VCO2_box.png")
-# 1x4 grid of box plots
-grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, ncol=4)
+
+# RR box plot
+RR_box <- ggplot(new_RR, aes(x=sex, y=avg_RR)) +
+  geom_boxplot() +
+  labs(x="Sex", y="RR (respiration/min)") +
+  theme(text = element_text(size=15))
+
+# VE box plot
+VE_box <- ggplot(new_VE, aes(x=sex, y=avg_VCO2)) +
+  geom_boxplot() +
+  labs(x="Sex", y="VE (L/min)") +
+  theme(text = element_text(size=15))
+
+ggsave("VCO2_box.png")
+# 1x6 grid of box plots
+plots = grid.arrange(speed_box + theme_bw(), HR_box + theme_bw(), VO2_box + theme_bw(), VCO2_box + theme_bw(), RR_box + theme_bw(), VE_box + theme_bw(), nrow = 2, ncol=3,
+                     top=textGrob("Average Physiological Measurements across Sex", gp=gpar(fontsize=15,font=8)))
+ggsave("plots.png", plots)
 ```
 
 ```{r}
 # Find correlation in all numeric values with are age, bmi, speed, HR, VO2, and VCO2
 # Convert stroke back to integer
-id_merged$sex <- as.integer(id_merged$sex)
-numeric_data <- id_merged[,c("sex","age","avg_speed","bmi","avg_HR","avg_VCO2","avg_VO2" )]
+id_merged$Sex <- as.integer(id_merged$Sex)
+numeric_data <- id_merged[,c("Sex","age","avg_speed","bmi","avg_HR","avg_VCO2","avg_VO2", "avg_RR", "avg_VE")]
 matrix = cor(numeric_data, use="complete.obs")
 matrix
 png(height=1800, width=1800, file="correlation_matrix.png")
-corrplot(matrix, type="upper", tl.col="black", tl.srt=45, tl.cex=3, cl.cex=3)
+corrplot(matrix, tl.col = "black", tl.srt = 45, tl.cex=5, cl.cex=5, bg = "White",
+         title = "\n\n Correlation Plot Of Features",
+         type = "lower")
 dev.off()
+corrplot(matrix, tl.col = "black",bg = "White",
+         title = "\n\n Correlation Plot Of Features",
+         type = "lower")
 ```
 ```{r}
-head(id_merged)
+library(reshape2)
+melted_gamb <- melt(matrix)
+head(melted_gamb)
+ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(midpoint = 0.5, mid ="ivory1", 
+                       limits = c(-1, +1)) +
+  labs(title = "Correlation Matrix \n On Treadmill Maximal Exercise Data \n", 
+       x = "", y = "", fill = "Correlation \n Measure \n") +
+  theme(plot.title = element_text(hjust = 0.5, colour = "black"), 
+        axis.title.x = element_text(face="bold", colour="black"),
+        axis.title.y = element_text(face="bold", colour="black"),
+        legend.title = element_text(colour="black", size = 15),
+        text = element_text(size=15),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_text(aes(x = Var1, y = Var2, label = round(value, 2)), color = "black", 
+            fontface = "bold", size = 5)
+
+ggsave("correlation_matrix.png")
 ```
 
 ```{r}
