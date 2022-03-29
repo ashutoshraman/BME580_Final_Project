@@ -69,6 +69,7 @@ sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
 ```{r}
 #Find mean ages based on gender
 library(dplyr)
+library(plyr)
 #Change gender data type from integer to character
 subject_info$Sex <-as.character(subject_info$Sex)
 age_mean <- ddply(subject_info, "Sex", summarise, grp.mean=mean(Age))
@@ -103,16 +104,21 @@ summary(test_measure)
 ```{r}
 # Find number of tests per ID
 library(dplyr)
-freq_tests = count(test_measure,'ID', sort= FALSE)
-head(freq_tests)
+freq_tests = count_(test_measure,'ID', sort= TRUE)
+head(freq_tests, 15)
 dim(freq_tests)
 
 # Find frequency of speeds
-freq_speeds = count(test_measure, 'Speed', sort=TRUE)
+freq_speeds = count_(test_measure, 'Speed', sort=TRUE)
 head(freq_speeds, 15)
 dim(freq_speeds)
-```
 
+# Find frequency of test time 
+freq_time = count_(test_measure, 'time', sort=TRUE)
+head(freq_time, 15)
+dim(freq_time)
+```
+Participants do not perform the same number of tests. There is an uneven distribution of speeds. Speed 5 is the most frequent, followed by 4.9, and then 13. Need a way to make the data time independent. 
 
 
 ```{r}
@@ -136,7 +142,38 @@ head(df_merge,15)
 dim(df_merge)
 ```
 ```{r}
-head(df_merge)
+#To make data time independent, we will average across all measurements for each speed range in an ID_test. Since the same ID_test can have multiple speeds, meaning the same participant will have multiple measurements in the data. 
+
+#Make a speed category, which puts speed ranges into a category. For example, any speed that falls between 0 and 1 is speed 0, and any speed that is between 1 and 2 is speed 1. We do this because not everyone runs at the same speed for the tests. 
+
+df_merge = df_merge%>%mutate(Speed_Category = case_when(
+    Speed >= 0 & Speed < 1 ~ "0",
+    Speed >= 1 & Speed < 2 ~ "1",
+    Speed >= 2 & Speed < 3 ~ "2",
+    Speed >= 3 & Speed < 4 ~ "3",
+    Speed >= 4 & Speed < 5 ~ "4",
+    Speed >=5  & Speed < 6 ~ "5",
+    Speed >=6  & Speed < 7 ~ "6",
+    Speed >=7  & Speed < 8 ~ "7",
+    Speed >=8  & Speed < 9 ~ "8",
+    Speed >=9  & Speed < 10 ~ "9",
+    Speed >=10 & Speed < 11 ~ "10",
+    Speed >=11 & Speed < 12 ~ "11",
+    Speed >=12 & Speed < 13 ~ "12",
+    Speed >=13 & Speed < 14 ~ "13",
+    Speed >=14 & Speed < 15 ~ "14",
+    Speed >=15 & Speed < 16 ~ "15",
+    Speed >=16 & Speed < 17 ~ "16",
+    Speed >=17 & Speed < 18 ~ "17",
+    Speed >=18 & Speed < 19 ~ "18",
+    Speed >=19 & Speed < 20 ~ "19",
+    Speed >=20 & Speed < 21 ~ "20",
+    Speed >=21 & Speed < 22 ~ "21",
+    Speed >=22 & Speed < 23 ~ "22",
+    Speed >=23 & Speed < 24 ~ "23"
+  ))
+
+head(df_merge,10)
 ```
 
 ```{r}
