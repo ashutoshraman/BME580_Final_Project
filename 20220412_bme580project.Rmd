@@ -177,6 +177,7 @@ head(df_merge,10)
 ```
 
 ```{r}
+#Groupd same ID and same speed together by taking the average of the speeds. Take average to not change the imbalance.
 # Find avg speed, HR, VO2, VCO2, RR based on ID and test
 df_merge$Sex <- as.numeric(df_merge$Sex)
 class(stroke_data$bmi)
