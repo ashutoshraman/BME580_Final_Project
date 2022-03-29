@@ -1,6 +1,6 @@
 ---
 title: "BME 580 Project"
-authors: "Michelle Li"
+authors: "Michelle Li, Ashu Raman, and Ayush Shetty"
 output: html_notebook
 ---
 
