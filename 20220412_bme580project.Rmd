@@ -29,14 +29,17 @@ test_measure <- read_csv("test_measure.csv")
 # Look at head of datasets
 head(subject_info,10)
 dim(subject_info)
+cat("Dimensions of subject_info:", dim(subject_info))
 ```
 There are 992 rows and 8 columns in subject_info datset. 
 ```{r}
 head(test_measure,10)
 dim(test_measure)
+cat("Dimensions of test_measure:", dim(test_measure))
 ```
 There are 575087 rows and 9 columns in test_measure datset. 
 ```{r}
+#Look at class types 
 lapply(subject_info,class)
 ```
 ```{r}
@@ -50,11 +53,6 @@ lapply(test_measure,class)
 # BMI formula = weight(lb)/height(cm)^2 * 703
 subject_info <- subject_info %>% 
   add_column(bmi = (subject_info$Weight*2.2/(subject_info$Height*0.393701)**2)*703)
-```
-
-```{r}
-head(subject_info,10)
-dim(subject_info)
 ```
 ```{r}
 summary(subject_info)
@@ -70,7 +68,7 @@ sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
 
 ```{r}
 #Find mean ages based on gender
-library(plyr)
+library(dplyr)
 #Change gender data type from integer to character
 subject_info$Sex <-as.character(subject_info$Sex)
 age_mean <- ddply(subject_info, "Sex", summarise, grp.mean=mean(Age))
@@ -93,7 +91,8 @@ age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
        y = "Density") +
   theme(text = element_text(size=20))
 # Add tickmarks for every 5 years for age 
-age_density = age_density + scale_x_continuous(breaks=seq(0, 80, 5)) + theme_bw()
+age_density = age_density + scale_x_continuous(breaks=seq(0, 80, 5)) + theme_bw() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 age_density
 ggsave("age_density.png")
 ```
@@ -103,9 +102,15 @@ summary(test_measure)
 ```
 ```{r}
 # Find number of tests per ID
-freq_tests = count(test_measure, vars =c('ID'))
+library(dplyr)
+freq_tests = count(test_measure,'ID', sort= FALSE)
 head(freq_tests)
 dim(freq_tests)
+
+# Find frequency of speeds
+freq_speeds = count(test_measure, 'Speed', sort=TRUE)
+head(freq_speeds, 15)
+dim(freq_speeds)
 ```
 
 
@@ -324,13 +329,16 @@ speed_box <- ggplot(new_speed, aes(x=sex, y=avg_speed)) +
   geom_boxplot() +
   labs(x="Sex", y="Speed (km/hr)") +
   theme(text = element_text(size=15))
-ggsave("speed_box.png")
+speed_box = speed_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 
 # HR box plot
 HR_box <- ggplot(new_HR, aes(x=sex, y=avg_HR)) +
   geom_boxplot() +
   labs(x="Sex", y="HR (bpm)") +
   theme(text = element_text(size=15))
+HR_box = HR_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 ggsave("HR_box.png")
 
 # V02 box plot
@@ -338,6 +346,8 @@ VO2_box <- ggplot(new_VO2, aes(x=sex, y=avg_VO2)) +
   geom_boxplot() +
   labs(x="Sex", y="VO2 (ml/min)") +
   theme(text = element_text(size=15))
+VO2_box  = VO2_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 ggsave("VO2_box.png")
 
 # VC02 box plot
@@ -345,13 +355,16 @@ VCO2_box <- ggplot(new_VCO2, aes(x=sex, y=avg_VCO2)) +
   geom_boxplot() +
   labs(x="Sex", y="VCO2 (ml/min)") +
   theme(text = element_text(size=15))
-ggsave("VCO2_box.png")
+VCO2_box  = VCO2_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 
 # RR box plot
 RR_box <- ggplot(new_RR, aes(x=sex, y=avg_RR)) +
   geom_boxplot() +
   labs(x="Sex", y="RR (respiration/min)") +
   theme(text = element_text(size=15))
+RR_box = RR_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
 
 # VE box plot
 VE_box <- ggplot(new_VE, aes(x=sex, y=avg_VCO2)) +
@@ -359,9 +372,13 @@ VE_box <- ggplot(new_VE, aes(x=sex, y=avg_VCO2)) +
   labs(x="Sex", y="VE (L/min)") +
   theme(text = element_text(size=15))
 
+VE_box = VE_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank())
+
 ggsave("VCO2_box.png")
 # 1x6 grid of box plots
-plots = grid.arrange(speed_box + theme_bw(), HR_box + theme_bw(), VO2_box + theme_bw(), VCO2_box + theme_bw(), RR_box + theme_bw(), VE_box + theme_bw(), nrow = 2, ncol=3,
+
+plots = grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, RR_box, VE_box, nrow = 2, ncol=3,
                      top=textGrob("Average Physiological Measurements across Sex", gp=gpar(fontsize=15,font=8)))
 ggsave("plots.png", plots)
 ```
@@ -386,21 +403,26 @@ corrplot(matrix, tl.col = "black",bg = "White",
 library(reshape2)
 melted_gamb <- melt(matrix)
 head(melted_gamb)
-ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
+corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
   geom_tile() +
-  scale_fill_gradient2(midpoint = 0.5, mid ="ivory1", 
+  scale_fill_gradient2(midpoint = 0, low = "red", high = "blue3", 
                        limits = c(-1, +1)) +
-  labs(title = "Correlation Matrix \n On Treadmill Maximal Exercise Data \n", 
+  labs(title = "Correlation Matrix On Treadmill Maximal Exercise Data ", 
        x = "", y = "", fill = "Correlation \n Measure \n") +
   theme(plot.title = element_text(hjust = 0.5, colour = "black"), 
         axis.title.x = element_text(face="bold", colour="black"),
         axis.title.y = element_text(face="bold", colour="black"),
         legend.title = element_text(colour="black", size = 15),
-        text = element_text(size=15),
+        text = element_text(size=13),
+        panel.background = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   geom_text(aes(x = Var1, y = Var2, label = round(value, 2)), color = "black", 
             fontface = "bold", size = 5)
 
+corrplot = corrplot
+corrplot
 ggsave("correlation_matrix.png")
 ```
 
