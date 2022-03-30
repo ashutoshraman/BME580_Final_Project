@@ -195,18 +195,90 @@ new_df = df_merge %>%
 new_df = new_df[
   with(new_df, order(ID_test, Speed_Category)),
 ]
+head(new_df,10)
+dim(new_df)
+#new_df is the final merged data frame that we will use to build and test our model. 
+```
+```{r}
+lapply(new_df,function(x) {length(which(is.na(x)))})
+```
+```{r}
+#Remove rows with NA
+new_df = na.omit(new_df)
+dim(new_df)
+```
+```{r}
+#Make all columns numeric
+new_df$Speed_Category = as.numeric(new_df$Speed_Category)
+new_df$Age = as.numeric(new_df$Age)
+new_df$Weight = as.numeric(new_df$Weight)
+new_df$Height = as.numeric(new_df$Height)
+new_df$bmi = as.numeric(new_df$bmi)
+new_df$avg_HR = as.numeric(new_df$avg_HR)
+new_df$avg_VO2 = as.numeric(new_df$avg_VO2)
+new_df$avg_VCO2 = as.numeric(new_df$avg_VCO2)
+new_df$avg_RR = as.numeric(new_df$avg_RR)
+new_df$avg_VE = as.numeric(new_df$avg_VE)
+```
+
+
+```{r}
+#Make linear regression that predicts avg_VO2 using all independent variables
+
+#Scale numerical variables
+scaled_df = new_df
+scaled_df[2:11] = scale(scaled_df[2:11])
+
+#Remove ID_test column
+scaled_df = subset (scaled_df, select = -ID_test)
+```
+
+```{r}
+library(caTools)
+set.seed(580)
+#Split scaled dataset and print rows
+idx = sample.split(scaled_df$avg_VO2, SplitRatio=0.7) # Splitting data 70:30
+
+train = scaled_df[idx, 1:length(scaled_df)]
+cat("Number of rows in train: ",nrow(train))
+cat("\n")
+test= scaled_df[!idx, 1:length(scaled_df)]
+cat("Number of rows in test: ",nrow(test))
+cat("\n")
+```
+
+
+```{r}
+linMod = lm(avg_VO2~., data = train)
+summary(linMod)
+
+#Plot  residuals
+plot(linMod$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for linMod") 
+abline(0, 0, col='red')  
+```
+
+```{r}
+#Vector of predictions for each observation
+result_linMod = predict(linMod, test)
+```
+
+```{r}
+#Average percent difference = abs((real-actual)/real)*100 
+difference = mean(((test$avg_VO2-result_linMod)/test$avg_VO2))*100
+cat("Average percent difference between true value and predictions", abs(difference) ,"%")
+```
+
+
+```{r}
 # Find avg speed, HR, VO2, VCO2, RR based on ID and test
 #df_merge$Sex <- as.numeric(df_merge$Sex)
 #id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), Sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), #avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
 #id_merged$Sex <- as.character(id_merged$Sex)
 #head(id_merged)
 #dim(id_merged)
-head(new_df,10)
-dim(new_df)
-```
 
-
-```{r}
 # Find avg speed, HR, VO2, VCO2, RR based on gender
 avg_merged <- ddply(df_merge, "Sex", summarise, avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
 avg_merged$Sex <- as.character(avg_merged$Sex)
