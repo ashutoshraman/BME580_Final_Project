@@ -221,6 +221,43 @@ new_df$avg_RR = as.numeric(new_df$avg_RR)
 new_df$avg_VE = as.numeric(new_df$avg_VE)
 ```
 
+```{r}
+head(new_df,10)
+```
+
+```{r}
+#Look at relationship between variables in new_df in all scatter plots 
+pairs(new_df[,2:11], pch = 19)
+```
+
+```{r}
+#library(reshape2)
+#Look at correlation plots in all numeric values which are age, bmi, speed, HR, VO2, VCO2, RR, VE
+matrix = cor(new_df[,2:11], use="complete.obs")
+melted_gamb = melt(matrix)
+head(melted_gamb)
+corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(midpoint = 0, low = "red", high = "blue3", 
+                       limits = c(-1, +1)) +
+  labs(title = "Correlation Matrix On Treadmill Maximal Exercise Data ", 
+       x = "", y = "", fill = "Correlation \n Measure \n") +
+  theme(plot.title = element_text(hjust = 0.5, colour = "black"), 
+        axis.title.x = element_text(face="bold", colour="black"),
+        axis.title.y = element_text(face="bold", colour="black"),
+        legend.title = element_text(colour="black", size = 15),
+        text = element_text(size=13),
+        panel.background = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_text(aes(x = Var1, y = Var2, label = round(value, 2)), color = "black", 
+            fontface = "bold", size = 5)
+
+corrplot = corrplot
+corrplot
+ggsave("correlation_matrix.png")
+```
 
 ```{r}
 #Make linear regression that predicts avg_VO2 using all independent variables
@@ -269,7 +306,55 @@ result_linMod = predict(linMod, test)
 difference = mean(((test$avg_VO2-result_linMod)/test$avg_VO2))*100
 cat("Average percent difference between true value and predictions", abs(difference) ,"%")
 ```
+```{r}
+#Make another linear regression model without VCO2
 
+#Remove VCO2 column
+train_2 = subset(train, select = -avg_VCO2)
+test_2 =  subset(test, select = -avg_VCO2)
+
+linMod_2 = lm(avg_VO2~., data = train_2)
+summary(linMod_2)
+
+#Plot  residuals
+plot(linMod_2$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for linMod_2") 
+abline(0, 0, col='red')  
+```
+
+```{r}
+#Vector of predictions using linMod_2 for each observation in test_2
+result_linMod_2 = predict(linMod_2, test_2)
+
+#Average percent difference = abs((real-actual)/real)*100 
+difference = mean(((test_2$avg_VO2-result_linMod_2)/test_2$avg_VO2))*100
+cat("Average percent difference between true value and predictions", abs(difference) ,"%")
+```
+```{r}
+#Make third lienar model without VE
+#Remove VCO2 column
+train_3 = subset(train_2, select = -avg_VE)
+test_3 =  subset(test_2, select = -avg_VE)
+
+linMod_3 = lm(avg_VO2~., data = train_3)
+summary(linMod_3)
+
+#Plot  residuals
+plot(linMod_3$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for linMod_3") 
+abline(0, 0, col='red')  
+```
+
+```{r}
+#Vector of predictions using linMod_2 for each observation in test_3
+result_linMod_3 = predict(linMod_3, test_3)
+
+#Average percent difference = abs((real-actual)/real)*100 
+difference = mean(((test_3$avg_VO2-result_linMod_3)/test_3$avg_VO2))*100
+cat("Average percent difference between true value and predictions", abs(difference) ,"%")
+```
 
 ```{r}
 # Find avg speed, HR, VO2, VCO2, RR based on ID and test
@@ -284,6 +369,7 @@ avg_merged <- ddply(df_merge, "Sex", summarise, avg_speed=mean(Speed), avg_HR=me
 avg_merged$Sex <- as.character(avg_merged$Sex)
 head(avg_merged)
 ```
+
 ```{r}
 #Graph density function
 id_merged$sex = as.character(id_merged$Sex)
@@ -510,59 +596,7 @@ plots = grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, RR_box, VE_box, nrow 
 ggsave("plots.png", plots)
 ```
 
-```{r}
-# Find correlation in all numeric values with are age, bmi, speed, HR, VO2, and VCO2
-# Convert stroke back to integer
-id_merged$Sex <- as.integer(id_merged$Sex)
-numeric_data <- id_merged[,c("Sex","age","avg_speed","bmi","avg_HR","avg_VCO2","avg_VO2", "avg_RR", "avg_VE")]
-matrix = cor(numeric_data, use="complete.obs")
-matrix
-png(height=1800, width=1800, file="correlation_matrix.png")
-corrplot(matrix, tl.col = "black", tl.srt = 45, tl.cex=5, cl.cex=5, bg = "White",
-         title = "\n\n Correlation Plot Of Features",
-         type = "lower")
-dev.off()
-corrplot(matrix, tl.col = "black",bg = "White",
-         title = "\n\n Correlation Plot Of Features",
-         type = "lower")
-```
-```{r}
-library(reshape2)
-melted_gamb <- melt(matrix)
-head(melted_gamb)
-corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(midpoint = 0, low = "red", high = "blue3", 
-                       limits = c(-1, +1)) +
-  labs(title = "Correlation Matrix On Treadmill Maximal Exercise Data ", 
-       x = "", y = "", fill = "Correlation \n Measure \n") +
-  theme(plot.title = element_text(hjust = 0.5, colour = "black"), 
-        axis.title.x = element_text(face="bold", colour="black"),
-        axis.title.y = element_text(face="bold", colour="black"),
-        legend.title = element_text(colour="black", size = 15),
-        text = element_text(size=13),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  geom_text(aes(x = Var1, y = Var2, label = round(value, 2)), color = "black", 
-            fontface = "bold", size = 5)
 
-corrplot = corrplot
-corrplot
-ggsave("correlation_matrix.png")
-```
-
-```{r}
-pairs(id_merged[,2:10], pch = 19)
-```
-```{r}
-#Look at scatterplots for speed = 5 and speed = 15
-id_merged_5 = filter(df_merge, Speed == 5)
-id_merged_5 <- ddply(id_merged_5, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
-head(id_merged_5)
-dim(id_merged_5)
-pairs(id_merged_5[,2:10], pch = 19)
 ```
 
 Notes, new
