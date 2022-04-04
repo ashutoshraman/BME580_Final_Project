@@ -58,6 +58,7 @@ def ml_pipeline(pipeline_choice, X, Y, variance=.9):
 
     scores = cross_val_score(grid_search_obj, X_train, Y_train, scoring='accuracy',cv=3, verbose=0)
     
+    print(grid_search_obj) #print best params for use in full train later
 
     best_params_model = grid_search_obj.fit(X_train, Y_train) #best params from model will give hyperparameters
     print("Mean Accuracy for pipeline: {:f}".format(np.mean(scores)))
@@ -175,8 +176,8 @@ scaler = StandardScaler()
 pca2 = PCA(n_components=2)
 X_train_scaled = scaler.fit_transform(X_train)
 X_train_scaled_reduced = pca2.fit_transform(X_train_scaled)
-X_test_scaled = scaler.fit_transform(X_test)  #do fit_transform or just transform???
-X_test_scaled_reduced = pca2.fit_transform(X_test_scaled) #try to fit transform scaler and pca to x train (maybe not even y train), and just transform x_test, since that is how you're supposed to do train/test manipulations
+X_test_scaled = scaler.transform(X_test)  #do fit_transform or just transform???
+X_test_scaled_reduced = pca2.transform(X_test_scaled) #try to fit transform scaler and pca to x train (maybe not even y train), and just transform x_test, since that is how you're supposed to do train/test manipulations
 
 svm_model = SVC(kernel='rbf', C=best_params.best_params_['SupVM__C'], gamma=best_params.best_params_['SupVM__gamma'])
 classify = svm_model.fit(X_train_scaled_reduced, Y_train) #supposed to fit to train data and evaluate on test so this could be wrong
@@ -195,8 +196,9 @@ def make_meshgrid(x, y, h=.1):
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
     return xx, yy
 
-X0, X1 = X_test_scaled_reduced[:, 0], X_test_scaled_reduced[:, 1] #train data again???
+X0, X1 = X_train_scaled_reduced[:, 0], X_train_scaled_reduced[:, 1] #train data again???
 xx, yy = make_meshgrid(X0, X1)
+X3, X4 = X_test_scaled_reduced[:, 0], X_test_scaled_reduced[:, 1]
 
 fig, ax = plt.subplots()#figsize=(12,9))
 fig.patch.set_facecolor('white')
@@ -210,12 +212,12 @@ labels1= [int(target1[0]) for target1 in Y_tar_list]
 
 for l1 in np.unique(labels1):
     ix1=np.where(labels1==l1)
-    ax.scatter(X0[ix1],X1[ix1], c=cdict1[l1],label=labl1[l1],s=70,marker=marker1[l1],alpha=alpha1[l1])
+    ax.scatter(X3[ix1],X4[ix1], c=cdict1[l1],label=labl1[l1],s=70,marker=marker1[l1],alpha=alpha1[l1]) #plot test pts in decision boundary
 
 ax.scatter(svm_model.support_vectors_[:, 0], svm_model.support_vectors_[:, 1], s=40, facecolors='none', 
-           edgecolors='navy', label='Support Vectors')
+           edgecolors='navy', label='Support Vectors') #may not be necessaey, since this plots support vectors, coming from train set
 
-plot_contours(ax, classify, xx, yy,cmap='seismic', alpha=0.4)
+plot_contours(ax, classify, xx, yy,cmap='seismic', alpha=0.4) #this is the train boundary built, or model
 plt.legend()#fontsize=15)
 plt.xlabel("1st Principal Component")#,fontsize=14)
 plt.ylabel("2nd Principal Component")#,fontsize=14)
