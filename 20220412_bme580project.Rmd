@@ -15,6 +15,9 @@ library(psych) # Contains the winsor function and other helpful statistical tool
 library(tidyverse) 
 library(gridExtra)
 library(corrplot)
+library(class)
+library(caret)
+library(gmodels)
 ```
 
 
@@ -233,6 +236,7 @@ scaled_df[2:11] = scale(scaled_df[2:11])
 scaled_df = subset (scaled_df, select = -ID_test)
 ```
 
+**Regression
 ```{r}
 library(caTools)
 set.seed(580)
@@ -575,4 +579,102 @@ one hot encoding convert category to numerical, be ordinal
 
 one type of variable easier to meeasure 
 
+****Ashu Stuff
+```{r}
 
+new_df <- new_df%>%
+  add_column(Weight_ind_VO2 = new_df$avg_VO2/new_df$Weight)
+summary(new_df)
+```
+```{r}
+histplot_vo2 = ggplot(new_df, aes(x=Weight_ind_VO2))+
+  geom_histogram(binwidth=1)+
+  labs(title="VO2 Over Weight", x="VO2/Weight (mL/kg*min)")+
+  #scale_color_manual(labels=c("Non-Stroke", "Stroke"))+
+theme(axis.title = element_text(size = 10))
+histplot_vo2
+```
+```{r}
+data("iris")
+
+iris$Species = as.numeric(iris$Species)
+str(iris)
+```
+
+```{r}
+cv = createFolds(iris$Species, k = 5)
+str(cv)
+```
+```{r}
+accuracies <- c()
+index <- 1
+for (i in cv) {
+  knn_model = knn(train = iris[-i,], 
+                 test = iris[i,],
+                 cl = iris[-i,]$Species,
+                 k = 5)
+  CrossTable(iris[i,]$Species, knn_model)
+  accuracy = sum(knn_model == iris[i,]$Species)/ length(iris[i,]$Species)
+  print(accuracy)
+  accuracies[index] = accuracy
+  index <- index+1
+}
+sprintf("Average accuracy across 4 folds is %f", mean(accuracies))
+
+```
+
+```{r}
+logModel = glm(outcome ~., family= binomial, data=train)
+summary(logModel)
+log.fit = predict(logModel, newdata = test, type='response')
+head(log.fit, 10)
+log.fit = ifelse(log.fit>.5, '1', '0')
+head(log.fit,10)
+misclassification = sum(log.fit != test$outcome)/ length(test$outcome)
+print(misclassification)
+print(1-misclassification)
+
+log.fit = predict(logModel, newdata = test, type='response')
+pred <- prediction(log.fit, test$outcome)
+perf <- performance(pred, 'tpr', 'fpr')
+plot(perf, main = "ROC curve")
+abline(a=0, b=1)
+
+auc_ROCR <- performance(pred, measure = "auc")
+auc_ROCR <- auc_ROCR@y.values[[1]]
+auc_ROCR
+
+cv = createFolds(heart_data$outcome, k = 4)
+str(cv)
+
+
+accuracies <- c()
+index <- 1
+for (i in cv) {
+  knn_model = knn(train = heart_data[-i,], 
+                 test = heart_data[i,],
+                 cl = heart_data[-i,]$outcome,
+                 k = sqrt(length(i)))
+  #CrossTable(heart[i,]$outcome, knn_model)
+  accuracy = sum(knn_model == heart_data[i,]$outcome)/ length(heart_data[i,]$outcome)
+  print(accuracy)
+  accuracies[index] = accuracy
+  index <- index+1
+}
+sprintf("Average accuracy across 4 folds is %f", mean(accuracies))
+```
+
+Building models for LDA, KNN, LR, and SVM. I will provide justification for each later, but they increase in complexity as you move left to right in model list.
+
+Each model will have K-fold cross validation with 5 folds (80:20 split for train test), because data set is sufficiently large
+
+Within each train fold, I perform gridsearch to tune model hyperparameters. This link shows
+how to do so in tidyverse: https://www.r-bloggers.com/2016/12/grid-search-in-the-tidyverse/
+
+This is for manual grid search and quick training, but less control: https://machinelearningmastery.com/tuning-machine-learning-models-using-the-caret-r-package/
+
+This link explains the exact process I'm following: https://stackoverflow.com/questions/42228735/scikit-learn-gridsearchcv-with-multiple-repetitions/42230764#42230764
+
+After all this, I will choose best model parameters from comparing each fold model, and do one more K-fold (80:20), for best model.
+
+I will create classification report of accuracy, precision, recall, F1, sensitivity, specificity, ROC curve. Choose best model from this.
