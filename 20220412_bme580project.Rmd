@@ -75,6 +75,7 @@ library(dplyr)
 #age_mean <- ddply(subject_info, "Sex", summarise, grp.mean=mean(Age))
 #head(age_mean)
 ```
+
 ```{r}
 # Find minimum and maximum ages based on gender
 #age_range <- ddply(subject_info, "Sex", summarise, min_age=min(Age), max_age=max(Age))
@@ -85,18 +86,19 @@ library(dplyr)
 # Graph density function
 #age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
 #  geom_density(alpha = 0.5) +
-  # Add mean lines
+  #Add mean lines
 #  geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
 #  labs(title= "Age Density across Sex",
 #       x = "Age (Years)",
 #       y = "Density") +
 #  theme(text = element_text(size=20))
-# Add tickmarks for every 5 years for age 
+# Add tick marks for every 5 years for age 
 #age_density = age_density + scale_x_continuous(breaks=seq(0, 80, 5)) + theme_bw() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #panel.background = element_blank())
 #age_density
 #ggsave("age_density.png")
 ```
+
 ```{r}
 #Summary stats for test_measure data
 summary(test_measure)
@@ -132,6 +134,7 @@ Participants do not perform the same number of tests. There is an uneven distrib
 #speed_range <- ddply(test_measure, "ID", summarise, min_speed = min(Speed), max_speed = max(Speed))
 #head(speed_range, 15)
 ```
+
 ```{r}
 # Merge 2 dataframes together based on ID_test
 df_merge <- merge(subject_info,test_measure,by="ID_test")
@@ -172,9 +175,8 @@ df_merge = df_merge%>%mutate(Speed_Category = case_when(
     Speed >=22 & Speed < 23 ~ "22",
     Speed >=23 & Speed < 24 ~ "23"
   ))
-
-head(df_merge,10)
 ```
+
 
 ```{r}
 #Group same ID and same speed together by taking the average of the speeds. Take average to not change the imbalance.
@@ -223,6 +225,28 @@ new_df$avg_VE = as.numeric(new_df$avg_VE)
 
 ```{r}
 head(new_df,10)
+```
+
+```{r}
+#Add labels to athleticism 
+new_df <- new_df%>%
+  add_column(Weight_ind_VO2 = new_df$avg_VO2/new_df$Weight)
+summary(new_df)
+
+histplot_vo2 = ggplot(new_df, aes(x=Weight_ind_VO2))+
+  geom_histogram(binwidth=1)+
+  labs(title="VO2 Over Weight", x="VO2/Weight (mL/kg*min)")+
+  #scale_color_manual(labels=c("Non-Stroke", "Stroke"))+
+theme(axis.title = element_text(size = 10))
+histplot_vo2
+
+new_df = new_df%>%mutate(Athletic = case_when(
+    Weight_ind_VO2 >= 41.5 ~ "1",
+    Weight_ind_VO2 < 41.5 ~ "0"))
+head(new_df,10)
+
+#Create CSV with athletic column
+write.csv(new_df,"preprocessed_model_data", row.names = FALSE)
 ```
 
 ```{r}
@@ -400,12 +424,12 @@ age_density + speed_density
 
 ```{r}
 #Female 
-female = filter(df_merge, Sex == 1)
+female = filter(new_df, Sex == 1)
 dim(female)
 head(female)
 
 #Male
-male = filter(df_merge, Sex == 0)
+male = filter(new_df, Sex == 0)
 dim(male)
 
 #Uneven distr of tests, mostly male
@@ -553,7 +577,7 @@ HR_box <- ggplot(new_HR, aes(x=sex, y=avg_HR)) +
 HR_box = HR_box + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 panel.background = element_blank())
 ggsave("HR_box.png")
-
+#41.5 binary
 # V02 box plot
 VO2_box <- ggplot(new_VO2, aes(x=sex, y=avg_VO2)) +
   geom_boxplot() +
