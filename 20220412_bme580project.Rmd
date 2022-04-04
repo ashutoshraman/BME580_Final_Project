@@ -250,8 +250,19 @@ write.csv(new_df,"preprocessed_model_data", row.names = FALSE)
 ```
 
 ```{r}
-#Look at relationship between variables in new_df in all scatter plots 
-pairs(new_df[,2:11], pch = 19)
+#Matrix of scatter plots for new_df scatter plots 
+who_df[1:16] = scale(who_df[1:17], center=TRUE, scale=TRUE) # Scaling our data
+who_df %>% 
+    pivot_longer(cols = -Life.expectancy, names_to = 'param') %>%
+    ggplot(aes(x = value, y = Life.expectancy)) +
+    geom_point() +
+    geom_smooth() +
+    facet_wrap(~param, scales = 'free_x')  +
+    labs(
+        title = 'Trends between Life Expectancy and Independent Variables',
+        x = 'Parameters',
+        y = 'Values'
+    )
 ```
 
 ```{r}
