@@ -54,6 +54,7 @@ lapply(test_measure,class)
 subject_info <- subject_info %>% 
   add_column(bmi = (subject_info$Weight*2.2/(subject_info$Height*0.393701)**2)*703)
 ```
+
 ```{r}
 summary(subject_info)
 ```
@@ -205,7 +206,7 @@ dim(new_df)
 lapply(new_df,function(x) {length(which(is.na(x)))})
 ```
 ```{r}
-#Remove rows with NA
+#Remove rows with NA values
 new_df = na.omit(new_df)
 dim(new_df)
 ```
@@ -246,27 +247,34 @@ new_df = new_df%>%mutate(Athletic = case_when(
 head(new_df,10)
 
 #Create CSV with athletic column
-write.csv(new_df,"preprocessed_model_data", row.names = FALSE)
+#write.csv(new_df,"preprocessed_model_data", row.names = FALSE)
+```
+```{r}
+new_df[,1:11]
 ```
 
 ```{r}
 #Matrix of scatter plots for new_df scatter plots 
-who_df[1:16] = scale(who_df[1:17], center=TRUE, scale=TRUE) # Scaling our data
-who_df %>% 
-    pivot_longer(cols = -Life.expectancy, names_to = 'param') %>%
-    ggplot(aes(x = value, y = Life.expectancy)) +
+new_df[2:12] = scale(new_df[2:12], center=TRUE, scale=TRUE) # Scaling our data
+scatter_plot = new_df[,2:11] %>% 
+    pivot_longer(cols = -avg_VO2, names_to = 'param') %>%
+    ggplot(aes(x = value, y = avg_VO2)) +
     geom_point() +
     geom_smooth() +
     facet_wrap(~param, scales = 'free_x')  +
     labs(
-        title = 'Trends between Life Expectancy and Independent Variables',
+        title = 'Trends between avg_VO2 and Independent Variables',
         x = 'Parameters',
         y = 'Values'
-    )
+    ) + 
+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                     panel.background = element_blank())
+scatter_plot
+ggsave("scatter_plot.png")
 ```
 
 ```{r}
-#library(reshape2)
+library(reshape2)
 #Look at correlation plots in all numeric values which are age, bmi, speed, HR, VO2, VCO2, RR, VE
 matrix = cor(new_df[,2:11], use="complete.obs")
 melted_gamb = melt(matrix)
@@ -568,6 +576,7 @@ nrow(RR_outliers)
 VE_outliers <- subset(id_merged, id_merged$avg_VE > (3*sd(id_merged$avg_VE , na.rm=TRUE) + mean(id_merged$avg_VE , na.rm = TRUE)))
 nrow(VE_outliers)
 ```
+
 ```{r}
 # Create box plots for avg speed, HR, VO2, and VCO2 across gender after removing outliers
 library(grid)
@@ -631,17 +640,6 @@ plots = grid.arrange(speed_box, HR_box, VO2_box, VCO2_box, RR_box, VE_box, nrow 
 ggsave("plots.png", plots)
 ```
 
-
 ```
-
-Notes, new
-predicting per
-exercise measurememts to prodice age
-ppl who wear wearables but diificult to predict age or gender
-
-feature engineering ti predict perfamce 
-one hot encoding convert category to numerical, be ordinal 
-
-one type of variable easier to meeasure 
 
 
