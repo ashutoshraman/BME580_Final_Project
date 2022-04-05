@@ -15,6 +15,7 @@ library(psych) # Contains the winsor function and other helpful statistical tool
 library(tidyverse) 
 library(gridExtra)
 library(corrplot)
+library(caTools)
 library(caret)
 library(lmtest)
 library(MLmetrics)
@@ -26,6 +27,7 @@ library(pracma)
 library(mgcv)
 library(readr)
 library(dplyr)
+library(fastDummies)
 ```
 
 
@@ -263,11 +265,63 @@ dim(new_df)
 new_df[,1:11]
 new_df
 ```
+```{r}
+#Speed histogram
+
+# Find bin widths based on Freedman-Diaconis method 
+bw <- 2 * IQR(new_df$Speed_Category) / length(new_df$Speed_Category)^(1/3)
+
+#Histogram with density function of VO2
+vo2_hist = ggplot(new_df, aes(x=Speed_Category)) + #Create histogram
+  geom_histogram(aes(y=..density..), binwidth=bw)+ #Add density plot
+  geom_density() +
+  labs(title="Speed Histogram", x="Speed (km/hr)", y="Density")+ 
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
+vo2_hist
+ggsave("speed_hist.png")
+```
+
 
 ```{r}
-#Matrix of scatter plots for new_df independent variables without scaling
-new_df$Speed_Category <- as.numeric(new_df$Speed_Category)
-scatter_plot = subset (new_df, select = c(-ID_test, -avg_VCO2, -avg_VE, -Weight_ind_VO2, -Athletic)) %>% 
+#Create dummy variables for Speed_Category
+new_df = dummy_cols(new_df, select_columns = c('Speed_Category'))
+new_df = subset(new_df, select = c(-ID_test, -Speed_Category, -avg_VCO2, -avg_VE, -Weight_ind_VO2))
+write.csv(new_df,"preprocessed_model_data_ver2.csv", row.names = FALSE)
+head(new_df,10)
+```
+```{r}
+#VO2 histogram
+
+# Find bin widths based on Freedman-Diaconis method 
+bw <- 2 * IQR(new_df$avg_VO2) / length(new_df$avg_VO2)^(1/3)
+
+#Histogram with density function of VO2
+vo2_hist = ggplot(new_df, aes(x=avg_VO2)) + #Create histogram
+  geom_histogram(aes(y=..density..), binwidth=bw)+ #Add density plot
+  geom_density() +
+  labs(title="VO2 Histogram", x="VO2 (ml/min)", y="Density")+ 
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
+vo2_hist
+ggsave("vo2_hist.png")
+```
+
+```{r}
+#Matrix of scatter plots for independent numerical variables without scaling
+scatter_plot = subset(new_df[,1:7], select = c(-Sex)) %>% 
     pivot_longer(cols = -avg_VO2, names_to = 'param') %>%
     ggplot(aes(x = value, y = avg_VO2)) +
     geom_point() +
@@ -295,7 +349,7 @@ ggsave("scatter_plot.png")
 ```{r}
 library(reshape2)
 #Correlation matrix for numeric values which are Age, avg_HR, avg_RR, Height, Speed_Category, and Weight to determine linear relationships
-matrix = cor(subset (new_df, select = c(-ID_test, -avg_VCO2, -avg_VE, -Weight_ind_VO2, -Athletic, -Sex)), use="complete.obs")
+matrix = cor(subset (new_df[,1:7], select = c(-Sex)), use="complete.obs")
 melted_gamb = melt(matrix)
 head(melted_gamb)
 corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
@@ -333,19 +387,14 @@ ggsave("correlation_matrix.png")
 ```{r}
 #Make linear regression that predicts avg_VO2 using all independent variables
 
-#Scale numerical variables, everything except for avg_VO2 and, athletic, and Sex
+#Scale numerical independent variables which everything except for avg_VO2 and, athletic, and Sex and speed categories
 scaled_df = new_df
-
-#Remove ID_test column
-scaled_df = subset (scaled_df, select = c(-ID_test, -Weight_ind_VO2, -avg_VCO2, -avg_VE, -Athletic))
-scaled_df[1:4] = scale(scaled_df[1:4])
-scaled_df[6:8] = scale(scaled_df[6:8])
+scaled_df[c(1,2,3,5,7)] = scale(scaled_df[c(1,2,3,5,7)])
 
 head(scaled_df,10)
 ```
 
 ```{r}
-library(caTools)
 set.seed(580)
 #Split scaled dataset and print rows
 idx = sample.split(scaled_df$avg_VO2, SplitRatio=0.8) # Splitting data 80:20
@@ -403,6 +452,8 @@ y.test = test$avg_VO2
 
 
 ```{r}
+#Create ridge regression 
+set.seed(580)
 lambdas = 10^seq(-3, 8, length=1000)
 cv_ridge = cv.glmnet(x.train, y.train, alpha = 0, lambda=lambdas)
 opt_lambda = cv_ridge$lambda.min
@@ -410,12 +461,15 @@ cat('Optimal ridge lambda:', opt_lambda)
 ```
 
 ```{r}
+#Evaluate ridge regression
 opt_ridge_model <- glmnet(x.train, y.train, alpha = 0, lambda = opt_lambda, standardize = TRUE)
 coef(opt_ridge_model)
 evaluate_model(opt_ridge_model, x.test, y.test)
 ```
+
 ```{r}
-#Lasso
+#Lasso regression
+set.seed(580)
 cv_lasso = cv.glmnet(x.train, y.train, alpha = 1, lambda=lambdas)
 opt_lasso_lambda = cv_lasso$lambda.min
 cat('Optimal lasso lambda:', opt_lasso_lambda)
@@ -423,9 +477,12 @@ opt_lasso_model <- glmnet(x.train, y.train, alpha = 1, lambda = opt_lasso_lambda
 coef(opt_lasso_model)
 evaluate_model(opt_lasso_model, x.test, y.test)
 ```
+
 ```{r}
-#Polynomial 
-polyMod = lm(avg_VO2~.+polym(avg_RR, Speed_Category, degree = 2), data = train)
+set.seed(580)
+
+#Polynomial regression
+polyMod = lm(avg_VO2~.+polym(avg_RR, avg_HR, Weight, degree = 2), data = train)
 
 #Summary for polyMod
 summary(polyMod)
@@ -433,13 +490,14 @@ summary(polyMod)
 #Evaluate accuracy
 evaluate_model(polyMod, test, test$avg_VO2)
 ```
+
 ```{r}
 #CV Lasso regression 
 #Split data
 set.seed(580)
-x.train_poly = model.matrix(avg_VO2~. + polym(avg_RR, Speed_Category, degree = 2), train)
+x.train_poly = model.matrix(avg_VO2~. + polym(avg_RR, avg_HR, Weight, degree = 2), train)
 y.train_poly = train$avg_VO2
-x.test_poly = model.matrix(avg_VO2~. + polym(avg_RR, Speed_Category, degree = 2), test)
+x.test_poly = model.matrix(avg_VO2~. + polym(avg_RR, avg_HR, Weight, degree = 2), test)
 y.test_poly = test$avg_VO2
 
 #Lasso
@@ -455,6 +513,7 @@ coef(poly_lasso_Mod)
 
 evaluate_model(poly_lasso_Mod, x.test_poly, y.test_poly)
 ```
+
 ```{r}
 #Ridge regression
 set.seed(580)
@@ -470,35 +529,53 @@ coef(poly_ridge_Mod)
 
 evaluate_model(poly_ridge_Mod, x.test_poly, y.test_poly)
 ```
+
 ```{r}
 #Splines
 set.seed(580)
-quantiles_1 = quantile(train$Speed_Category, na.rm = FALSE)
+#quantiles_1 = quantile(train$Speed_Category, na.rm = FALSE)
 quantiles_2 = quantile(train$avg_HR, na.rm = FALSE)
 quantiles_3 = quantile(train$avg_RR, na.rm = FALSE)
+quantiles_4 = quantile(train$Weight, na.rm = FALSE)
 
 # Specifying knots directly
-spline_knots_1 = c(quantiles_1[2],quantiles_1[3], quantiles_1[4])
+#spline_knots_1 = c(quantiles_1[2],quantiles_1[3], quantiles_1[4])
 spline_knots_2 = c(quantiles_2[2],quantiles_2[3], quantiles_2[4])
 spline_knots_3 = c(quantiles_3[2],quantiles_3[3], quantiles_3[4])
+spline_knots_4 = c(quantiles_4[2],quantiles_4[3], quantiles_4[4])
 ```
 
 ```{r}
 #Train model using all variables plus selected variables as b-splines
 set.seed(580)
 bs_Mod = lm(avg_VO2~.+
-              bs(Speed_Category, knots=spline_knots_1, df=3) +
-              bs(avg_HR, knots=spline_knots_2, df=3) +
-              bs(avg_RR, knots=spline_knots_3, df=3), data = train)
+              #bs(Speed_Category, knots=spline_knots_1, df=3) +
+              bs(avg_HR, knots=spline_knots_2, df=3) + 
+              bs(avg_RR, knots=spline_knots_3, df=3) +
+              bs(Weight, knots=spline_knots_4, df=3), data = train)
 summary(bs_Mod)
 evaluate_model(bs_Mod, test, test$avg_VO2)
 ```
+
 ```{r}
-#Train model using natural spline ns() 
+#b-spline residuals plot
+png('bspline_residuals.png')
+par(bg=NA)
+bspline_residuals = plot(bs_Mod$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for Cubic Spline Regression") 
+abline(0, 0, col='red')  
+dev.off()
+bspline_residuals
+```
+
+```{r}
+#Train model using natural cubic spline ns() 
 ns_Mod = lm(avg_VO2~.+
-              ns(Speed_Category, knots=spline_knots_1, df=3) +
+              #ns(Speed_Category, knots=spline_knots_1, df=3) +
               ns(avg_HR, knots=spline_knots_2, df=3) +
-              ns(avg_RR, knots=spline_knots_3, df=3), data = train)
+              ns(avg_RR, knots=spline_knots_3, df=3) +
+              ns(Weight, knots=spline_knots_4, df=3), data = train)
 
 summary(ns_Mod)
 evaluate_model(ns_Mod, test, test$avg_VO2)
@@ -540,6 +617,7 @@ ggsave("speed_density.png")
 density_grid = grid.arrange(age_density,speed_density, ncol = 1)
 ggsave("density_grid.png", density_grid)
 ```
+
 ```{r}
 library(patchwork)
 age_density + speed_density
