@@ -22,13 +22,15 @@ library(glmnet)
 library(caTools)
 library(splines)
 library(psych)
+library(pracma)
 library(mgcv)
+library(readr)
+library(dplyr)
 ```
 
 
 ```{r}
 # Import CSV files
-library(readr)
 subject_info <- read_csv("subject-info.csv")
 test_measure <- read_csv("test_measure.csv")
 ```
@@ -77,7 +79,6 @@ sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
 
 ```{r}
 #Find mean ages based on gender
-library(dplyr)
 #library(plyr)
 #Change gender data type from integer to character
 #subject_info$Sex <-as.character(subject_info$Sex)
@@ -260,12 +261,13 @@ write.csv(new_df,"preprocessed_model_data.csv", row.names = FALSE)
 ```{r}
 dim(new_df)
 new_df[,1:11]
+new_df
 ```
 
 ```{r}
-#Matrix of scatter plots for new_df scatter plots without scaling
-#new_df[2:12] = scale(new_df[2:12], center=TRUE, scale=TRUE) # Scaling our data
-scatter_plot = new_df[,2:11] %>% 
+#Matrix of scatter plots for new_df independent variables without scaling
+new_df$Speed_Category <- as.numeric(new_df$Speed_Category)
+scatter_plot = subset (new_df, select = c(-ID_test, -avg_VCO2, -avg_VE, -Weight_ind_VO2, -Athletic)) %>% 
     pivot_longer(cols = -avg_VO2, names_to = 'param') %>%
     ggplot(aes(x = value, y = avg_VO2)) +
     geom_point() +
@@ -286,12 +288,14 @@ scatter_plot = new_df[,2:11] %>%
   )
 scatter_plot
 ggsave("scatter_plot.png")
+
+#vg HR, speed, RR, sqrt 
 ```
 
 ```{r}
 library(reshape2)
-#Look at correlation plots in all numeric values which are age, bmi, speed, HR, VO2, VCO2, RR, VE
-matrix = cor(new_df[,2:11], use="complete.obs")
+#Correlation matrix for numeric values which are Age, avg_HR, avg_RR, Height, Speed_Category, and Weight to determine linear relationships
+matrix = cor(subset (new_df, select = c(-ID_test, -avg_VCO2, -avg_VE, -Weight_ind_VO2, -Athletic, -Sex)), use="complete.obs")
 melted_gamb = melt(matrix)
 head(melted_gamb)
 corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
@@ -381,7 +385,7 @@ evaluate_model = function(model, prediction_object, dependent_var) {
 ```
 
 ```{r}
-#Test function on linMod
+#Evaluate linMod
 evaluate_model(linMod, test, test$avg_VO2)
 ```
 
@@ -399,7 +403,6 @@ y.test = test$avg_VO2
 
 
 ```{r}
-library('pracma')
 lambdas = 10^seq(-3, 8, length=1000)
 cv_ridge = cv.glmnet(x.train, y.train, alpha = 0, lambda=lambdas)
 opt_lambda = cv_ridge$lambda.min
