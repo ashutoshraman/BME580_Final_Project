@@ -14,14 +14,13 @@ library(rpart.plot)
 ```
 
 ```{r}
-data("iris")
-summary(iris)
+data = read_csv("preprocessed_model_data.csv")
 ```
 
 ```{r}
 fit.control = trainControl(method = "repeatedcv", number = 5, repeats = 10)
 set.seed(123)  
-randFor = train(Species ~ ., data = iris, method = "rf", trControl = fit.control)
+randFor = train(Species ~ ., data = data, method = "rf", trControl = fit.control)
 randFor
 ```
 
