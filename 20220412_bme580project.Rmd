@@ -134,19 +134,6 @@ dim(freq_time)
 ```
 Participants do not perform the same number of tests. There is an uneven distribution of speeds. Speed 5 is the most frequent, followed by 4.9, and then 13. Need a way to make the data time independent. 
 
-
-```{r}
-#Look at average speed for the 857 unique participants 
-#speed_mean <- ddply(test_measure, "ID", summarise, grp.mean=mean(Speed))
-#head(speed_mean,15)
-```
-
-```{r}
-# Speed range for each participant 
-#speed_range <- ddply(test_measure, "ID", summarise, min_speed = min(Speed), max_speed = max(Speed))
-#head(speed_range, 15)
-```
-
 ```{r}
 # Merge 2 dataframes together based on ID_test
 df_merge <- merge(subject_info,test_measure,by="ID_test")
@@ -222,12 +209,16 @@ new_df = na.omit(new_df)
 dim(new_df)
 ```
 ```{r}
+summary(new_df)
+```
+
+```{r}
 #Make all columns numeric
-new_df$Speed_Category = as.numeric(new_df$Speed_Category)
+new_df$Speed_Category = as.factor(new_df$Speed_Category)
 new_df$Age = as.numeric(new_df$Age)
 new_df$Weight = as.numeric(new_df$Weight)
 new_df$Height = as.numeric(new_df$Height)
-new_df$Sex = as.numeric(new_df$Sex)
+new_df$Sex = as.factor(new_df$Sex)
 new_df$avg_HR = as.numeric(new_df$avg_HR)
 new_df$avg_VO2 = as.numeric(new_df$avg_VO2)
 new_df$avg_VCO2 = as.numeric(new_df$avg_VCO2)
@@ -261,21 +252,11 @@ head(new_df,10)
 write.csv(new_df,"preprocessed_model_data.csv", row.names = FALSE)
 ```
 ```{r}
-dim(new_df)
-new_df[,1:11]
-new_df
-```
-```{r}
-#Speed histogram
-
-# Find bin widths based on Freedman-Diaconis method 
-bw <- 2 * IQR(new_df$Speed_Category) / length(new_df$Speed_Category)^(1/3)
-
-#Histogram with density function of VO2
-vo2_hist = ggplot(new_df, aes(x=Speed_Category)) + #Create histogram
-  geom_histogram(aes(y=..density..), binwidth=bw)+ #Add density plot
-  geom_density() +
-  labs(title="Speed Histogram", x="Speed (km/hr)", y="Density")+ 
+#Sex distribution
+sex_bar = ggplot(new_df, aes(x=factor(Sex), fill=Sex))+
+  geom_bar(stat="count", width=0.7)+  
+  labs(title="Sex Distribution", x="Sex", y="Count", color="Legend") +
+  scale_x_discrete(labels=c("0" = "Male", "1" = "Female"))+
     theme(
     panel.background = element_rect(fill = "transparent"), # bg of the panel
     plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
@@ -283,8 +264,27 @@ vo2_hist = ggplot(new_df, aes(x=Speed_Category)) + #Create histogram
     panel.grid.minor = element_blank(), # get rid of minor grid
     legend.background = element_rect(fill = "transparent"), # get rid of legend bg
     legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
-  )
-vo2_hist
+    ) +
+  guides(fill="none")
+sex_bar 
+ggsave("sex_bar.png")
+```
+
+```{r}
+#Speed distribution
+new_df$Speed_Category <- factor(new_df$Speed_Category,levels = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23))
+speed_hist = ggplot(new_df, aes(x=factor(Speed_Category)))+
+  geom_bar(stat="count", width=0.7)+  
+  labs(title="Speed Distribution", x="Speed (km/hr)", y="Count")+ 
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
+speed_hist 
 ggsave("speed_hist.png")
 ```
 
@@ -293,6 +293,8 @@ ggsave("speed_hist.png")
 #Create dummy variables for Speed_Category
 new_df = dummy_cols(new_df, select_columns = c('Speed_Category'))
 new_df = subset(new_df, select = c(-ID_test, -Speed_Category, -avg_VCO2, -avg_VE, -Weight_ind_VO2))
+#Make all speed categories as type factor
+new_df[9:32] <- lapply(new_df[9:32], factor)
 write.csv(new_df,"preprocessed_model_data_ver2.csv", row.names = FALSE)
 head(new_df,10)
 ```
@@ -393,6 +395,15 @@ scaled_df[c(1,2,3,5,7)] = scale(scaled_df[c(1,2,3,5,7)])
 
 head(scaled_df,10)
 ```
+```{r}
+#count unique values for each variable
+sapply(lapply(scaled_df, unique), length)
+```
+```{r}
+#Remove speed_category_1 because it only has 1 unique value and no variation in the predictor value
+scaled_df = subset(scaled_df, select = c(-Speed_Category_1))
+```
+
 
 ```{r}
 set.seed(580)
@@ -593,63 +604,6 @@ evaluate_model(ns_Mod, test, test$avg_VO2)
 avg_merged <- ddply(df_merge, "Sex", summarise, avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
 avg_merged$Sex <- as.character(avg_merged$Sex)
 head(avg_merged)
-```
-
-```{r}
-#Graph density function
-id_merged$sex = as.character(id_merged$Sex)
-speed_density = ggplot(id_merged, aes(x=avg_speed, fill=Sex, color=Sex)) +
-  geom_density(alpha = 0.5) +
-  #Add mean lines
-  geom_vline(data=avg_merged, aes(xintercept=avg_speed, color=Sex), linetype="dashed") +
-  labs(title ="Speed Density across Sex",
-       x = "Speed (km/hr)",
-       y = "Density") +
-  theme(text = element_text(size=20))
-# Add tickmarks for every 5 years for age 
-speed_density = speed_density + scale_x_continuous(breaks=seq(0, 15, 1)) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank())
-speed_density
-ggsave("speed_density.png")
-```
-```{r}
-# 1x2 grid speed and age density plots for proposal 
-density_grid = grid.arrange(age_density,speed_density, ncol = 1)
-ggsave("density_grid.png", density_grid)
-```
-
-```{r}
-library(patchwork)
-age_density + speed_density
-```
-
-
-```{r}
-#Female 
-female = filter(new_df, Sex == 1)
-dim(female)
-head(female)
-
-#Male
-male = filter(new_df, Sex == 0)
-dim(male)
-
-#Uneven distr of tests, mostly male
-```
-
-```{r}
-# Find count of number of tests per speed
-freq_speed = count(test_measure, vars =c('Speed'))
-head(freq_speed)
-dim(freq_speed)
-
-freq_female_speed = count(female, vars =c('Speed'))
-head(freq_female_speed)
-dim(freq_female_speed)
-
-freq_male_speed = count(male, vars =c('Speed'))
-head(male_speed)
-dim(male_speed)
 ```
 
 
