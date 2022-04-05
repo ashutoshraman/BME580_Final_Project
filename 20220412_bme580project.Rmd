@@ -15,6 +15,14 @@ library(psych) # Contains the winsor function and other helpful statistical tool
 library(tidyverse) 
 library(gridExtra)
 library(corrplot)
+library(caret)
+library(lmtest)
+library(MLmetrics)
+library(glmnet)
+library(caTools)
+library(splines)
+library(psych)
+library(mgcv)
 ```
 
 
@@ -188,7 +196,7 @@ new_df = df_merge %>%
   dplyr::summarize(Age = mean(Age),
             Weight = mean(Weight),
             Height = mean(Height),
-            bmi = mean(bmi), 
+            Sex = mean(Sex), 
             avg_HR = mean(HR),
             avg_VO2 = mean(VO2),
             avg_VCO2 = mean(VCO2),
@@ -216,7 +224,7 @@ new_df$Speed_Category = as.numeric(new_df$Speed_Category)
 new_df$Age = as.numeric(new_df$Age)
 new_df$Weight = as.numeric(new_df$Weight)
 new_df$Height = as.numeric(new_df$Height)
-new_df$bmi = as.numeric(new_df$bmi)
+new_df$Sex = as.numeric(new_df$Sex)
 new_df$avg_HR = as.numeric(new_df$avg_HR)
 new_df$avg_VO2 = as.numeric(new_df$avg_VO2)
 new_df$avg_VCO2 = as.numeric(new_df$avg_VCO2)
@@ -247,15 +255,16 @@ new_df = new_df%>%mutate(Athletic = case_when(
 head(new_df,10)
 
 #Create CSV with athletic column
-#write.csv(new_df,"preprocessed_model_data", row.names = FALSE)
+write.csv(new_df,"preprocessed_model_data.csv", row.names = FALSE)
 ```
 ```{r}
+dim(new_df)
 new_df[,1:11]
 ```
 
 ```{r}
-#Matrix of scatter plots for new_df scatter plots 
-new_df[2:12] = scale(new_df[2:12], center=TRUE, scale=TRUE) # Scaling our data
+#Matrix of scatter plots for new_df scatter plots without scaling
+#new_df[2:12] = scale(new_df[2:12], center=TRUE, scale=TRUE) # Scaling our data
 scatter_plot = new_df[,2:11] %>% 
     pivot_longer(cols = -avg_VO2, names_to = 'param') %>%
     ggplot(aes(x = value, y = avg_VO2)) +
@@ -267,8 +276,14 @@ scatter_plot = new_df[,2:11] %>%
         x = 'Parameters',
         y = 'Values'
     ) + 
-  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                     panel.background = element_blank())
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
 scatter_plot
 ggsave("scatter_plot.png")
 ```
@@ -295,7 +310,16 @@ corrplot = ggplot(data = melted_gamb, aes(x = Var1, y = Var2, fill = value)) +
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   geom_text(aes(x = Var1, y = Var2, label = round(value, 2)), color = "black", 
-            fontface = "bold", size = 5)
+            fontface = "bold", size = 5) + 
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent"), # get rid of legend panel bg
+    legend.key = element_rect(colour = NA, fill = NA),
+    )
 
 corrplot = corrplot
 corrplot
@@ -305,19 +329,22 @@ ggsave("correlation_matrix.png")
 ```{r}
 #Make linear regression that predicts avg_VO2 using all independent variables
 
-#Scale numerical variables
+#Scale numerical variables, everything except for avg_VO2 and, athletic, and Sex
 scaled_df = new_df
-scaled_df[2:11] = scale(scaled_df[2:11])
 
 #Remove ID_test column
-scaled_df = subset (scaled_df, select = -ID_test)
+scaled_df = subset (scaled_df, select = c(-ID_test, -Weight_ind_VO2, -avg_VCO2, -avg_VE, -Athletic))
+scaled_df[1:4] = scale(scaled_df[1:4])
+scaled_df[6:8] = scale(scaled_df[6:8])
+
+head(scaled_df,10)
 ```
 
 ```{r}
 library(caTools)
 set.seed(580)
 #Split scaled dataset and print rows
-idx = sample.split(scaled_df$avg_VO2, SplitRatio=0.7) # Splitting data 70:30
+idx = sample.split(scaled_df$avg_VO2, SplitRatio=0.8) # Splitting data 80:20
 
 train = scaled_df[idx, 1:length(scaled_df)]
 cat("Number of rows in train: ",nrow(train))
@@ -329,6 +356,7 @@ cat("\n")
 
 
 ```{r}
+#Baseline model
 linMod = lm(avg_VO2~., data = train)
 summary(linMod)
 
@@ -340,63 +368,137 @@ abline(0, 0, col='red')
 ```
 
 ```{r}
-#Vector of predictions for each observation
-result_linMod = predict(linMod, test)
+#Function to evaluate model performance
+evaluate_model = function(model, prediction_object, dependent_var) {
+  y_pred = predict(model, prediction_object)
+  y_true = dependent_var
+  test_MAE = MAE(y_pred, y_true)
+  RSS = sum((y_pred-y_true)^2) 
+  R_squared = R2_Score(y_pred, y_true)
+  output = data.frame('Test Mean Absolute Error' = test_MAE, 'RSS' = RSS, 'R-squared' = R_squared)
+  return(output)
+}
 ```
 
 ```{r}
-#Average percent difference = abs((real-actual)/real)*100 
-difference = mean(((test$avg_VO2-result_linMod)/test$avg_VO2))*100
-cat("Average percent difference between true value and predictions", abs(difference) ,"%")
-```
-```{r}
-#Make another linear regression model without VCO2
-
-#Remove VCO2 column
-train_2 = subset(train, select = -avg_VCO2)
-test_2 =  subset(test, select = -avg_VCO2)
-
-linMod_2 = lm(avg_VO2~., data = train_2)
-summary(linMod_2)
-
-#Plot  residuals
-plot(linMod_2$residuals, 
-     ylab="Residuals", xlab="Index", 
-     main="Residuals for linMod_2") 
-abline(0, 0, col='red')  
+#Test function on linMod
+evaluate_model(linMod, test, test$avg_VO2)
 ```
 
 ```{r}
-#Vector of predictions using linMod_2 for each observation in test_2
-result_linMod_2 = predict(linMod_2, test_2)
+#Ridge regression
+#Split train
+set.seed(580)
+x.train = model.matrix(avg_VO2~. , train)
+y.train = train$avg_VO2
 
-#Average percent difference = abs((real-actual)/real)*100 
-difference = mean(((test_2$avg_VO2-result_linMod_2)/test_2$avg_VO2))*100
-cat("Average percent difference between true value and predictions", abs(difference) ,"%")
+#Split test
+x.test = model.matrix(avg_VO2~. , test)
+y.test = test$avg_VO2
 ```
+
+
 ```{r}
-#Make third lienar model without VE
-#Remove VCO2 column
-train_3 = subset(train_2, select = -avg_VE)
-test_3 =  subset(test_2, select = -avg_VE)
-
-linMod_3 = lm(avg_VO2~., data = train_3)
-summary(linMod_3)
-
-#Plot  residuals
-plot(linMod_3$residuals, 
-     ylab="Residuals", xlab="Index", 
-     main="Residuals for linMod_3") 
-abline(0, 0, col='red')  
+library('pracma')
+lambdas = 10^seq(-3, 8, length=1000)
+cv_ridge = cv.glmnet(x.train, y.train, alpha = 0, lambda=lambdas)
+opt_lambda = cv_ridge$lambda.min
+cat('Optimal ridge lambda:', opt_lambda)
 ```
 
 ```{r}
-#Vector of predictions using linMod_2 for each observation in test_3
-result_linMod_3 = predict(linMod_3, test_3)
+opt_ridge_model <- glmnet(x.train, y.train, alpha = 0, lambda = opt_lambda, standardize = TRUE)
+coef(opt_ridge_model)
+evaluate_model(opt_ridge_model, x.test, y.test)
+```
+```{r}
+#Lasso
+cv_lasso = cv.glmnet(x.train, y.train, alpha = 1, lambda=lambdas)
+opt_lasso_lambda = cv_lasso$lambda.min
+cat('Optimal lasso lambda:', opt_lasso_lambda)
+opt_lasso_model <- glmnet(x.train, y.train, alpha = 1, lambda = opt_lasso_lambda, standardize = TRUE)
+coef(opt_lasso_model)
+evaluate_model(opt_lasso_model, x.test, y.test)
+```
+```{r}
+#Polynomial 
+polyMod = lm(avg_VO2~.+polym(avg_RR, Speed_Category, degree = 2), data = train)
 
-#Average percent difference = abs((real-actual)/real)*100 
-difference = mean(((test_3$avg_VO2-result_linMod_3)/test_3$avg_VO2))*100
-cat("Average percent difference between true value and predictions", abs(difference) ,"%")
+#Summary for polyMod
+summary(polyMod)
+
+#Evaluate accuracy
+evaluate_model(polyMod, test, test$avg_VO2)
+```
+```{r}
+#CV Lasso regression 
+#Split data
+set.seed(580)
+x.train_poly = model.matrix(avg_VO2~. + polym(avg_RR, Speed_Category, degree = 2), train)
+y.train_poly = train$avg_VO2
+x.test_poly = model.matrix(avg_VO2~. + polym(avg_RR, Speed_Category, degree = 2), test)
+y.test_poly = test$avg_VO2
+
+#Lasso
+cv_polym_lasso = cv.glmnet(x.train_poly, y.train_poly, alpha = 1, lambda=lambdas)
+
+#Optimal model lambda
+opt_polym_lasso_lambda = cv_polym_lasso$lambda.min
+cat('Optimal lasso lambda:', opt_polym_lasso_lambda)
+
+#Optimal model coeff
+poly_lasso_Mod = glmnet(x.train_poly, y.train_poly, alpha = 1, lambda = opt_polym_lasso_lambda) 
+coef(poly_lasso_Mod)
+
+evaluate_model(poly_lasso_Mod, x.test_poly, y.test_poly)
+```
+```{r}
+#Ridge regression
+set.seed(580)
+cv_polym_ridge = cv.glmnet(x.train_poly, y.train_poly, alpha = 0, lambda=lambdas)
+
+#Optimal model ridge
+opt_polym_ridge_lambda = cv_polym_ridge$lambda.min
+cat('Optimal ridge lambda:', opt_polym_ridge_lambda)
+
+#Optimal model coeff
+poly_ridge_Mod = glmnet(x.train_poly, y.train_poly, alpha = 0, lambda = opt_polym_ridge_lambda) 
+coef(poly_ridge_Mod)
+
+evaluate_model(poly_ridge_Mod, x.test_poly, y.test_poly)
+```
+```{r}
+#Splines
+set.seed(580)
+quantiles_1 = quantile(train$Speed_Category, na.rm = FALSE)
+quantiles_2 = quantile(train$avg_HR, na.rm = FALSE)
+quantiles_3 = quantile(train$avg_RR, na.rm = FALSE)
+
+# Specifying knots directly
+spline_knots_1 = c(quantiles_1[2],quantiles_1[3], quantiles_1[4])
+spline_knots_2 = c(quantiles_2[2],quantiles_2[3], quantiles_2[4])
+spline_knots_3 = c(quantiles_3[2],quantiles_3[3], quantiles_3[4])
+```
+
+```{r}
+#Train model using all variables plus selected variables as b-splines
+set.seed(580)
+bs_Mod = lm(avg_VO2~.+
+              bs(Speed_Category, knots=spline_knots_1, df=3) +
+              bs(avg_HR, knots=spline_knots_2, df=3) +
+              bs(avg_RR, knots=spline_knots_3, df=3), data = train)
+summary(bs_Mod)
+evaluate_model(bs_Mod, test, test$avg_VO2)
+```
+```{r}
+#Train model using natural spline ns() 
+ns_Mod = lm(avg_VO2~.+
+              ns(Speed_Category, knots=spline_knots_1, df=3) +
+              ns(avg_HR, knots=spline_knots_2, df=3) +
+              ns(avg_RR, knots=spline_knots_3, df=3), data = train)
+
+summary(ns_Mod)
+evaluate_model(ns_Mod, test, test$avg_VO2)
 ```
 
 ```{r}
