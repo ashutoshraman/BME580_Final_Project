@@ -80,38 +80,6 @@ sum(is.na(subject_info$bmi)==TRUE)/nrow(subject_info) * 100
 
 
 ```{r}
-#Find mean ages based on gender
-#library(plyr)
-#Change gender data type from integer to character
-#subject_info$Sex <-as.character(subject_info$Sex)
-#age_mean <- ddply(subject_info, "Sex", summarise, grp.mean=mean(Age))
-#head(age_mean)
-```
-
-```{r}
-# Find minimum and maximum ages based on gender
-#age_range <- ddply(subject_info, "Sex", summarise, min_age=min(Age), max_age=max(Age))
-#head(age_range)
-```
-
-```{r}
-# Graph density function
-#age_density = ggplot(subject_info, aes(x=Age, fill=Sex, color=Sex)) +
-#  geom_density(alpha = 0.5) +
-  #Add mean lines
-#  geom_vline(data=age_mean, aes(xintercept=grp.mean, color=Sex), linetype="dashed") +
-#  labs(title= "Age Density across Sex",
-#       x = "Age (Years)",
-#       y = "Density") +
-#  theme(text = element_text(size=20))
-# Add tick marks for every 5 years for age 
-#age_density = age_density + scale_x_continuous(breaks=seq(0, 80, 5)) + theme_bw() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-#panel.background = element_blank())
-#age_density
-#ggsave("age_density.png")
-```
-
-```{r}
 #Summary stats for test_measure data
 summary(test_measure)
 ```
@@ -191,7 +159,8 @@ new_df = df_merge %>%
             avg_VO2 = mean(VO2),
             avg_VCO2 = mean(VCO2),
             avg_RR = mean(RR),
-            avg_VE = mean(VE)) %>% 
+            avg_VE = mean(VE),
+            avg_Speed = mean(Speed)) %>% 
   as.data.frame()
 new_df = new_df[
   with(new_df, order(ID_test, Speed_Category)),
@@ -199,6 +168,9 @@ new_df = new_df[
 head(new_df,10)
 dim(new_df)
 #new_df is the final merged data frame that we will use to build and test our model. 
+
+#Try new data with speed as continuous
+try = new_df
 ```
 ```{r}
 lapply(new_df,function(x) {length(which(is.na(x)))})
@@ -292,9 +264,9 @@ ggsave("speed_hist.png")
 ```{r}
 #Create dummy variables for Speed_Category
 new_df = dummy_cols(new_df, select_columns = c('Speed_Category'))
-new_df = subset(new_df, select = c(-ID_test, -Speed_Category, -avg_VCO2, -avg_VE, -Weight_ind_VO2))
+new_df = subset(new_df, select = c(-ID_test, -Speed_Category, -Speed_Category_1, -avg_VCO2, -avg_VE, -Weight_ind_VO2))
 #Make all speed categories as type factor
-new_df[9:32] <- lapply(new_df[9:32], factor)
+new_df[9:31] <- lapply(new_df[9:31], factor)
 write.csv(new_df,"preprocessed_model_data_ver2.csv", row.names = FALSE)
 head(new_df,10)
 ```
@@ -396,12 +368,38 @@ scaled_df[c(1,2,3,5,7)] = scale(scaled_df[c(1,2,3,5,7)])
 head(scaled_df,10)
 ```
 ```{r}
-#count unique values for each variable
-sapply(lapply(scaled_df, unique), length)
+#Scale try 
+try = subset(try, select = c(-ID_test, -Speed_Category))
+```
+
+```{r}
+#Scale try
+try = subset(try, select = c(-avg_VCO2, -avg_VE))
+```
+
+```{r}
+try[c(1,2,3,5,7,8)] = scale(try[c(1,2,3,5,7,8)])
 ```
 ```{r}
-#Remove speed_category_1 because it only has 1 unique value and no variation in the predictor value
-scaled_df = subset(scaled_df, select = c(-Speed_Category_1))
+try = na.omit(try)
+```
+
+```{r}
+set.seed(580)
+#Split try dataset and print rows
+idx_try = sample.split(try$avg_VO2, SplitRatio=0.8) # Splitting data 80:20
+
+train_try = try[idx, 1:length(try)]
+cat("Number of rows in train: ",nrow(train_try))
+cat("\n")
+test_try= try[!idx, 1:length(try)]
+cat("Number of rows in test: ",nrow(test_try))
+cat("\n")
+```
+
+```{r}
+#count unique values for each variable
+sapply(lapply(scaled_df, unique), length)
 ```
 
 
@@ -447,6 +445,20 @@ evaluate_model = function(model, prediction_object, dependent_var) {
 ```{r}
 #Evaluate linMod
 evaluate_model(linMod, test, test$avg_VO2)
+```
+
+```{r}
+#Try model
+try_linMod = lm(avg_VO2~., data = train_try)
+summary(try_linMod)
+
+#Plot  residuals
+plot(try_linMod$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for try_linMod") 
+abline(0, 0, col='red') 
+
+evaluate_model(try_linMod, test_try, test_try$avg_VO2)
 ```
 
 ```{r}
