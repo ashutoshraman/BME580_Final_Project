@@ -88,11 +88,38 @@ def learning_curve_graph(fitted_pipeline, X_train, Y_train): #possibly include f
     plt.legend()
     plt.show()
 
+def loadingplot(score,coeff,labels=None):
+    xs = score[:,0]
+    ys = score[:,1]
+    n = coeff.shape[0]
+    scalex = 1.0/(xs.max() - xs.min())
+    scaley = 1.0/(ys.max() - ys.min())
+    plt.scatter(xs * scalex,ys * scaley, c = df.iloc[:, -1])
+    for i in range(n):
+        plt.arrow(0, 0, coeff[i,0], coeff[i,1],color = 'r',alpha = 0.5)
+        if labels is None:
+            plt.text(coeff[i,0]* 1.15, coeff[i,1] * 1.15, "Var"+str(i+1), color = 'g', ha = 'center', va = 'center')
+        else:
+            plt.text(coeff[i,0]* 1.15, coeff[i,1] * 1.15, labels[i], color = 'g', ha = 'center', va = 'center')
+    plt.xlim(-1,1)
+    plt.ylim(-1,1)
+    plt.xlabel("PC{}".format(1))
+    plt.ylabel("PC{}".format(2))
+    plt.title('PCA Biplot for First 2 PCs')
+    plt.grid()
+
 
 scaler = StandardScaler()
-pca2 = PCA(n_components=2)
+pca2 = PCA(n_components=.9)
 X_train_scaled = scaler.fit_transform(df.iloc[:, 1:8])
 X_train_scaled_reduced = pca2.fit_transform(X_train_scaled)
+
+print(pca2.explained_variance_)
+print(pca2.explained_variance_ratio_)
+print(pca2.explained_variance_ratio_.cumsum())
+
+loadingplot(X_train_scaled_reduced[:,0:2],np.transpose(pca2.components_[0:2, :]), labels=list(df)[1:8])
+plt.show()
 
 pca_one = X_train_scaled_reduced[:, 0].reshape(X_train_scaled_reduced.shape[0])
 pca_two = X_train_scaled_reduced[:, 1].reshape(X_train_scaled_reduced.shape[0])
