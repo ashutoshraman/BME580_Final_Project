@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
@@ -12,16 +13,9 @@ from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 import sys
 
-#fitted_pca_matrix, X_array, Y_array, new_Y_array = get_pca_matrix()
-Y_array = Y_array.reshape(Y_array.shape[0])
 
-def pca_k_nearest_pipeline(variance):
-    pipeline_object = make_pipeline(StandardScaler(), PCA(n_components=variance), KNeighborsClassifier())
-    knn_param_grid = [{'kneighborsclassifier__n_neighbors': [5, 7, 10, 15, 20],
-                       'kneighborsclassifier__weights': ['distance', 'uniform'],
-                       'kneighborsclassifier__p': [1, 2, 3], #1 is manhattan, 2 is euclidian, and arbitrary or 3 is minkowski dist
-                       }]
-    return pipeline_object, knn_param_grid
+df = pd.read_csv('preprocessed_model_data.csv', delimiter=',')
+
 
 def pca_svm_pipeline(variance):
     pipeline_obj = make_pipeline(StandardScaler(), PCA(n_components=variance), SVC(kernel='rbf', random_state=10))
@@ -41,11 +35,10 @@ def ml_pipeline(pipeline_choice, X, Y, variance=.9):
     X_train, X_test, Y_train, Y_test = train_test_split(
         X, Y, test_size=0.2, shuffle=True, random_state = 10, stratify=Y)
 
-    if pipeline_choice == 0:
-        pipeline_obj, param_grid = pca_k_nearest_pipeline(variance)
-    elif pipeline_choice == 1:
+
+    if pipeline_choice == 1:
         pipeline_obj, param_grid = pca_svm_pipeline(variance)
-    elif pipeline_choice == 2:
+    elif pipeline_choice == 0:
         pipeline_obj, param_grid = pca_logistic_pipeline(variance)
     else:
         print('no classifier for this entry')
@@ -54,12 +47,10 @@ def ml_pipeline(pipeline_choice, X, Y, variance=.9):
                   param_grid=param_grid,
                   scoring='accuracy',
                   refit=True,
-                  cv=5, verbose=0)
+                  cv=3, verbose=0)
 
-    scores = cross_val_score(grid_search_obj, X_train, Y_train, scoring='accuracy',cv=3, verbose=0)
+    scores = cross_val_score(grid_search_obj, X_train, Y_train, scoring='accuracy',cv=5, verbose=0)
     
-    print(grid_search_obj) #print best params for use in full train later
-
     best_params_model = grid_search_obj.fit(X_train, Y_train) #best params from model will give hyperparameters
     print("Mean Accuracy for pipeline: {:f}".format(np.mean(scores)))
     print("Stdev of Accuracy for pipeline: {:f}".format(np.std(scores)))
@@ -76,7 +67,7 @@ def AUC_ROC(y_test, y_score, labels):
     plot_roc_curve(fpr, tpr)
     return fpr, tpr, auc
 
-def learning_curve_graph(fitted_pipeline, X_train, Y_train):
+def learning_curve_graph(fitted_pipeline, X_train, Y_train): #possibly include for bias variance trade off showing
     plt.figure()
     train_sizes, train_scores, test_scores = learning_curve(fitted_pipeline, X_train, Y_train,
                                             train_sizes=np.linspace(.1,1.0,10), cv=4, n_jobs=1, shuffle=False)
@@ -97,90 +88,114 @@ def learning_curve_graph(fitted_pipeline, X_train, Y_train):
     plt.legend()
     plt.show()
 
-#single run...  comment everything past here out until functions
-best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(0, X_array, Y_array)
-print(best_params.best_score_)
 
-# accuracy and evaluation of model
-train_score = best_params.score(X_train, Y_train) #why is this not same as best_score_ above??
-test_score = best_params.score(X_test, Y_test)
-print(train_score, test_score)
+scaler = StandardScaler()
+pca2 = PCA(n_components=2)
+X_train_scaled = scaler.fit_transform(df.iloc[:, 1:8])
+X_train_scaled_reduced = pca2.fit_transform(X_train_scaled)
 
-#predict a label from test data
-Y_pred = best_params.predict(X_test)
-cm = confusion_matrix(Y_test, Y_pred)
-# print("Confusion Matrix: \n")
-# print(cm)
+pca_one = X_train_scaled_reduced[:, 0].reshape(X_train_scaled_reduced.shape[0])
+pca_two = X_train_scaled_reduced[:, 1].reshape(X_train_scaled_reduced.shape[0])
 
-#confusion matrix
-titles_options = [("Confusion matrix, without normalization", None),
-                ("Normalized confusion matrix", 'true')]
-for title, normalize in titles_options:
-    disp = plot_confusion_matrix(best_params, X_test, Y_test,
-                                cmap=plt.cm.Blues,
-                                normalize=normalize)
-    disp.ax_.set_title(title)
-
-    plt.show()
-
-print(classification_report(Y_test, Y_pred))
-
-#roc and auc score
 
 plt.figure()
-fpr, tpr, auc = AUC_ROC(Y_test, Y_pred, 1) #change arg 3 to get names for graph legend
-print('The AUC for {} is {}'.format(1, auc))
-
-plt.plot([0, 1], [0, 1], 'k--') 
-plt.axis([0, 1, 0, 1])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curve')
-plt.legend()
+sns.scatterplot(
+                x = pca_one, y= pca_two,
+                hue = df.iloc[:, -1],
+                style = df.iloc[:, -1],
+                palette = sns.color_palette("hls", 2),
+                alpha = 0.3
+                )
+plt.title('PCA One vs Two for VO2 Predictors')
+plt.xlabel('PCA One')
+plt.ylabel('PCA Two')
 plt.show()
 
-##call learning curve function producer
-learning_curve_graph(best_params, X_train, Y_train)
+
+# #single run...  
+# best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, df.iloc[:, 1:8], df.iloc[:, -1])
+# print(best_params.best_score_)
+
+# # accuracy and evaluation of model
+# train_score = best_params.score(X_train, Y_train) #why is this not same as best_score_ above??
+# test_score = best_params.score(X_test, Y_test)
+# print(train_score, test_score)
+
+# #predict a label from test data
+# Y_pred = best_params.predict(X_test)
+# cm = confusion_matrix(Y_test, Y_pred)
+# # print("Confusion Matrix: \n")
+# # print(cm)
+
+# #confusion matrix
+# titles_options = [("Confusion matrix, without normalization", None),
+#                 ("Normalized confusion matrix", 'true')]
+# for title, normalize in titles_options:
+#     disp = plot_confusion_matrix(best_params, X_test, Y_test,
+#                                 cmap=plt.cm.Blues,
+#                                 normalize=normalize)
+#     disp.ax_.set_title(title)
+
+#     plt.show()
+
+# print(classification_report(Y_test, Y_pred))
+
+
+
+# #roc and auc score
+
+# plt.figure()
+# fpr, tpr, auc = AUC_ROC(Y_test, Y_pred, 1) #change arg 3 to get names for graph legend
+# print('The AUC for {} is {}'.format(1, auc))
+
+# plt.plot([0, 1], [0, 1], 'k--') 
+# plt.axis([0, 1, 0, 1])
+# plt.xlabel('False Positive Rate')
+# plt.ylabel('True Positive Rate')
+# plt.title('ROC Curve')
+# plt.legend()
+# plt.show()
+
+#call learning curve function producer
+# learning_curve_graph(best_params, X_train, Y_train)
 
 #end single run, stop commenting
 
-#this part is to get the overlaid ROC curves
-models = ['KNN', 'SVM', 'Logistic Regression']
-# fpr_array = np.zeros(3, 3)
-# tpr_array = np.zeros(3, 3)
-# tpr_array = np.copy(fpr_array)
-plt.figure()
-for i, n in enumerate(models):
-    best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(i, X_array, Y_array)
-    Y_pred = best_params.predict(X_test)
-    fpr, tpr, thresholds = roc_curve(Y_test, Y_pred, pos_label=1)
-    auc = roc_auc_score(Y_test, Y_pred)    
-    plt.plot(fpr, tpr, linewidth=4, label=n)
+# #this part is to get the overlaid ROC curves
+# models = ['Logistic Regression', 'SVM']
 
-    print('The AUC for {} is {}'.format(n, auc))
-    input('ready for next model?: ')
+# plt.figure()
+# for i, n in enumerate(models):
+#     best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(i, df.iloc[:, 1:8], df.iloc[:, -1])
+#     Y_pred = best_params.predict(X_test)
+#     fpr, tpr, thresholds = roc_curve(Y_test, Y_pred, pos_label=1)
+#     auc = roc_auc_score(Y_test, Y_pred)    
+#     plt.plot(fpr, tpr, linewidth=4, label=n)
 
- #change arg 3 to get names for graph legend
+#     print('The AUC for {} is {}'.format(n, auc))
+#     input('ready for next model?: ')
 
-plt.plot([0, 1], [0, 1], 'k--') 
-plt.axis([0, 1, 0, 1])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curve')
-plt.legend()
-plt.show()
+#  #change arg 3 to get names for graph legend
+
+# plt.plot([0, 1], [0, 1], 'k--') 
+# plt.axis([0, 1, 0, 1])
+# plt.xlabel('False Positive Rate')
+# plt.ylabel('True Positive Rate')
+# plt.title('ROC Curve')
+# plt.legend()
+# plt.show()
 
 #plot SVM decision boundary-- figure this out for gridsearch
-best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, X_array, Y_array)
+best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, df.iloc[:, 1:8], df.iloc[:, -1], variance=2)
 scaler = StandardScaler()
 pca2 = PCA(n_components=2)
-X_train_scaled = scaler.fit_transform(X_train)
-X_train_scaled_reduced = pca2.fit_transform(X_train_scaled)
-X_test_scaled = scaler.transform(X_test)  #do fit_transform or just transform???
-X_test_scaled_reduced = pca2.transform(X_test_scaled) #try to fit transform scaler and pca to x train (maybe not even y train), and just transform x_test, since that is how you're supposed to do train/test manipulations
+X_test_scaled = scaler.fit_transform(X_test)
+X_test_scaled_reduced = pca2.fit_transform(X_test_scaled)
 
-svm_model = SVC(kernel='rbf', C=best_params.best_params_['SupVM__C'], gamma=best_params.best_params_['SupVM__gamma'])
-classify = svm_model.fit(X_train_scaled_reduced, Y_train) #supposed to fit to train data and evaluate on test so this could be wrong
+
+
+svm_model = SVC(kernel='rbf', C=best_params.best_params_['svc__C'], gamma=best_params.best_params_['svc__gamma'])
+classify = svm_model.fit(X_test_scaled_reduced, Y_test) 
 
 def plot_contours(ax, clf, xx, yy, **params):
     Z = clf.decision_function(np.c_[xx.ravel(), yy.ravel()])
@@ -196,30 +211,29 @@ def make_meshgrid(x, y, h=.1):
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
     return xx, yy
 
-X0, X1 = X_train_scaled_reduced[:, 0], X_train_scaled_reduced[:, 1] #train data again???
+X0, X1 = X_test_scaled_reduced[:, 0], X_test_scaled_reduced[:, 1] 
 xx, yy = make_meshgrid(X0, X1)
-X3, X4 = X_test_scaled_reduced[:, 0], X_test_scaled_reduced[:, 1]
 
 fig, ax = plt.subplots()#figsize=(12,9))
 fig.patch.set_facecolor('white')
 cdict1={0:'lime',1:'deeppink'}
-labl1={1:'Malignant',0:'Benign'}
+labl1={1:'Athletic VO2',0:'Unathletic VO2'}
 marker1={0:'*',1:'d'}
 alpha1={0:.8, 1:0.5}
 
 Y_tar_list = Y_test.tolist()
-labels1= [int(target1[0]) for target1 in Y_tar_list]
+labels1= [int(target1) for target1 in Y_tar_list]
 
 for l1 in np.unique(labels1):
     ix1=np.where(labels1==l1)
-    ax.scatter(X3[ix1],X4[ix1], c=cdict1[l1],label=labl1[l1],s=70,marker=marker1[l1],alpha=alpha1[l1]) #plot test pts in decision boundary
+    ax.scatter(X0[ix1],X1[ix1], c=cdict1[l1],label=labl1[l1],s=70,marker=marker1[l1],alpha=alpha1[l1]) #plot test pts in decision boundary
 
 ax.scatter(svm_model.support_vectors_[:, 0], svm_model.support_vectors_[:, 1], s=40, facecolors='none', 
-           edgecolors='navy', label='Support Vectors') #may not be necessaey, since this plots support vectors, coming from train set
+           edgecolors='navy', label='Support Vectors') #may not be necessary, since this plots support vectors, coming from train set usually
 
-plot_contours(ax, classify, xx, yy,cmap='seismic', alpha=0.4) #this is the train boundary built, or model
+plot_contours(ax, classify, xx, yy,cmap='seismic', alpha=0.4) #this is the boundary built, or model
 plt.legend()#fontsize=15)
 plt.xlabel("1st Principal Component")#,fontsize=14)
 plt.ylabel("2nd Principal Component")#,fontsize=14)
-plt.title('SVM Decision Boundary and Predictions for Spectroscopic Sarcoma Data')
+plt.title('SVM Decision Boundary and Predictions for Athleticism')
 plt.show()
