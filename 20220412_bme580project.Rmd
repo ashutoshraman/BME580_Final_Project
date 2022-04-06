@@ -629,12 +629,12 @@ evaluate_model(ns_Mod, test, test$avg_VO2)
 #n-spline residuals plot
 png('nspline_residuals.png')
 par(bg=NA)
-bspline_residuals = plot(bs_Mod$residuals, 
+nspline_residuals = plot(bs_Mod$residuals, 
      ylab="Residuals", xlab="Index", 
      main="Residuals for Natural Cubic Spline Regression") 
 abline(0, 0, col='red')  
 dev.off()
-bspline_residuals
+nspline_residuals
 ```
 ```{r}
 train_try
@@ -642,13 +642,25 @@ train_try
 
 ```{r}
 #GAM using top 5 features: Speed, Sex, Weight, HR, RR
-gam_Mod <- gam(avg_VO2 ~ s(avg_Speed, Sex, Weight,avg_HR, avg_RR), data=train_try)
+gam_Mod <- gam(avg_VO2 ~ s(avg_Speed,Sex,Weight,avg_HR,avg_RR), data=train_try)
 summary(gam_Mod)
 ```
 ```{r}
 evaluate_model(gam_Mod, test_try, test_try$avg_VO2)
 ```
 
+
+```{r}
+#GAM residuals plot
+png('gam_residuals.png')
+par(bg=NA)
+gam_residuals = plot(gam_Mod$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for GAM") 
+abline(0, 0, col='red')  
+dev.off()
+gam_residuals
+```
 
 ```{r}
 # Distribution of speed histogram

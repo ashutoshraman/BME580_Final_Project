@@ -46,6 +46,8 @@ randFor
 
 ```{r}
 plot(randFor)
+dev.copy(png,'randFor.png')
+dev.off()
 ```
 
 ```{r}
@@ -59,6 +61,8 @@ tuner = tuneRF(subset(df_train, select = -avg_VO2), df_train$avg_VO2, #Optimizin
                plot=T,
                ntreeTry = 479,
                improve = 10000)
+dev.copy(png,'tuner.png')
+dev.off()
 ```
 
 
@@ -86,4 +90,7 @@ sum((df_test$avg_VO2-optPreds)^2) # Rss
 R2_Score(optPreds, df_test$avg_VO2) # R2 value
 ```
 
+```{r}
+optRf$importance
+```
 
