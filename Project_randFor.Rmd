@@ -24,7 +24,7 @@ library(ROCR)
 ```
 
 ```{r}
-df = read.csv("/Users/ayush/Documents/Work/Duke/Spring 2022/Data science/Course project/preprocessed_model_data_ver2.csv")
+df = read.csv("preprocessed_model_data_ver2.csv")
 
 df$Athletic = as.factor(df$Athletic)
 
