@@ -604,20 +604,6 @@ summary(ns_Mod)
 evaluate_model(ns_Mod, test, test$avg_VO2)
 ```
 
-```{r}
-# Find avg speed, HR, VO2, VCO2, RR based on ID and test
-#df_merge$Sex <- as.numeric(df_merge$Sex)
-#id_merged <- ddply(df_merge, "ID_test", summarise, bmi = mean(bmi), age=mean(Age), Sex=mean(Sex), avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), #avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE), avg_RR=mean(RR, na.rm=TRUE), avg_VE=mean(VE, na.rm=TRUE))
-#id_merged$Sex <- as.character(id_merged$Sex)
-#head(id_merged)
-#dim(id_merged)
-
-# Find avg speed, HR, VO2, VCO2, RR based on gender
-avg_merged <- ddply(df_merge, "Sex", summarise, avg_speed=mean(Speed), avg_HR=mean(HR, na.rm=TRUE), avg_VO2=mean(VO2,na.rm=TRUE), avg_VCO2=mean(VCO2, na.rm=TRUE))
-avg_merged$Sex <- as.character(avg_merged$Sex)
-head(avg_merged)
-```
-
 
 ```{r}
 # Distribution of speed histogram
