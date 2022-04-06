@@ -292,6 +292,28 @@ vo2_hist = ggplot(new_df, aes(x=avg_VO2)) + #Create histogram
 vo2_hist
 ggsave("vo2_hist.png")
 ```
+```{r}
+#Age histogram
+
+# Find bin widths based on Freedman-Diaconis method 
+bw <- 2 * IQR(new_df$Age) / length(new_df$Age)^(1/3)
+
+#Histogram with density function of Age
+age_hist = ggplot(new_df, aes(x=Age)) + #Create histogram
+  geom_histogram(aes(y=..density..), binwidth=bw)+ #Add density plot
+  geom_density() +
+  labs(title="Age Histogram", x="Age (years)", y="Density")+ 
+    theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+  )
+age_hist
+ggsave("age_hist.png")
+```
 
 ```{r}
 #Matrix of scatter plots for independent numerical variables without scaling
@@ -361,8 +383,9 @@ ggsave("correlation_matrix.png")
 ```{r}
 #Make linear regression that predicts avg_VO2 using all independent variables
 
-#Scale numerical independent variables which everything except for avg_VO2 and, athletic, and Sex and speed categories
-scaled_df = new_df
+#Scale numerical independent variables which everything except for avg_VO2, Sex and speed categories
+#Remove athletic column since it is a regression problem
+scaled_df = subset(new_df, select = c(-Athletic, -avg_Speed))
 scaled_df[c(1,2,3,5,7)] = scale(scaled_df[c(1,2,3,5,7)])
 
 head(scaled_df,10)
@@ -384,18 +407,6 @@ try[c(1,2,3,5,7,8)] = scale(try[c(1,2,3,5,7,8)])
 try = na.omit(try)
 ```
 
-```{r}
-set.seed(580)
-#Split try dataset and print rows
-idx_try = sample.split(try$avg_VO2, SplitRatio=0.8) # Splitting data 80:20
-
-train_try = try[idx, 1:length(try)]
-cat("Number of rows in train: ",nrow(train_try))
-cat("\n")
-test_try= try[!idx, 1:length(try)]
-cat("Number of rows in test: ",nrow(test_try))
-cat("\n")
-```
 
 ```{r}
 #count unique values for each variable
@@ -416,6 +427,16 @@ cat("Number of rows in test: ",nrow(test))
 cat("\n")
 ```
 
+```{r}
+set.seed(580)
+#Split try dataset and print rows
+train_try = try[idx, 1:length(try)]
+cat("Number of rows in train: ",nrow(train_try))
+cat("\n")
+test_try= try[!idx, 1:length(try)]
+cat("Number of rows in test: ",nrow(test_try))
+cat("\n")
+```
 
 ```{r}
 #Baseline model
@@ -594,6 +615,7 @@ bspline_residuals
 
 ```{r}
 #Train model using natural cubic spline ns() 
+set.seed(580)
 ns_Mod = lm(avg_VO2~.+
               #ns(Speed_Category, knots=spline_knots_1, df=3) +
               ns(avg_HR, knots=spline_knots_2, df=3) +
@@ -602,6 +624,29 @@ ns_Mod = lm(avg_VO2~.+
 
 summary(ns_Mod)
 evaluate_model(ns_Mod, test, test$avg_VO2)
+```
+```{r}
+#n-spline residuals plot
+png('nspline_residuals.png')
+par(bg=NA)
+bspline_residuals = plot(bs_Mod$residuals, 
+     ylab="Residuals", xlab="Index", 
+     main="Residuals for Natural Cubic Spline Regression") 
+abline(0, 0, col='red')  
+dev.off()
+bspline_residuals
+```
+```{r}
+train_try
+```
+
+```{r}
+#GAM using top 5 features: Speed, Sex, Weight, HR, RR
+gam_Mod <- gam(avg_VO2 ~ s(avg_Speed, Sex, Weight,avg_HR, avg_RR), data=train_try)
+summary(gam_Mod)
+```
+```{r}
+evaluate_model(gam_Mod, test_try, test_try$avg_VO2)
 ```
 
 
