@@ -112,78 +112,78 @@ plt.ylabel('PCA Two')
 plt.show()
 
 
-# #single run...  
-# best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, df.iloc[:, 1:8], df.iloc[:, -1])
-# print(best_params.best_score_)
+#single run...  
+best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, df.iloc[:, 1:8], df.iloc[:, -1])
+print(best_params.best_score_)
 
-# # accuracy and evaluation of model
-# train_score = best_params.score(X_train, Y_train) #why is this not same as best_score_ above??
-# test_score = best_params.score(X_test, Y_test)
-# print(train_score, test_score)
+# accuracy and evaluation of model
+train_score = best_params.score(X_train, Y_train) #why is this not same as best_score_ above??
+test_score = best_params.score(X_test, Y_test)
+print(train_score, test_score)
 
-# #predict a label from test data
-# Y_pred = best_params.predict(X_test)
-# cm = confusion_matrix(Y_test, Y_pred)
-# # print("Confusion Matrix: \n")
-# # print(cm)
+#predict a label from test data
+Y_pred = best_params.predict(X_test)
+cm = confusion_matrix(Y_test, Y_pred)
+# print("Confusion Matrix: \n")
+# print(cm)
 
-# #confusion matrix
-# titles_options = [("Confusion matrix, without normalization", None),
-#                 ("Normalized confusion matrix", 'true')]
-# for title, normalize in titles_options:
-#     disp = plot_confusion_matrix(best_params, X_test, Y_test,
-#                                 cmap=plt.cm.Blues,
-#                                 normalize=normalize)
-#     disp.ax_.set_title(title)
+#confusion matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(best_params, X_test, Y_test,
+                                cmap=plt.cm.Blues,
+                                normalize=normalize)
+    disp.ax_.set_title(title)
 
-#     plt.show()
+    plt.show()
 
-# print(classification_report(Y_test, Y_pred))
+print(classification_report(Y_test, Y_pred))
 
 
 
-# #roc and auc score
+#roc and auc score
 
-# plt.figure()
-# fpr, tpr, auc = AUC_ROC(Y_test, Y_pred, 1) #change arg 3 to get names for graph legend
-# print('The AUC for {} is {}'.format(1, auc))
+plt.figure()
+fpr, tpr, auc = AUC_ROC(Y_test, Y_pred, 1) #change arg 3 to get names for graph legend
+print('The AUC for {} is {}'.format(1, auc))
 
-# plt.plot([0, 1], [0, 1], 'k--') 
-# plt.axis([0, 1, 0, 1])
-# plt.xlabel('False Positive Rate')
-# plt.ylabel('True Positive Rate')
-# plt.title('ROC Curve')
-# plt.legend()
-# plt.show()
+plt.plot([0, 1], [0, 1], 'k--') 
+plt.axis([0, 1, 0, 1])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.show()
 
-#call learning curve function producer
+# call learning curve function producer
 # learning_curve_graph(best_params, X_train, Y_train)
 
-#end single run, stop commenting
+# end single run, stop commenting
 
-# #this part is to get the overlaid ROC curves
-# models = ['Logistic Regression', 'SVM']
+#this part is to get the overlaid ROC curves
+models = ['Logistic Regression', 'SVM']
 
-# plt.figure()
-# for i, n in enumerate(models):
-#     best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(i, df.iloc[:, 1:8], df.iloc[:, -1])
-#     Y_pred = best_params.predict(X_test)
-#     fpr, tpr, thresholds = roc_curve(Y_test, Y_pred, pos_label=1)
-#     auc = roc_auc_score(Y_test, Y_pred)    
-#     plt.plot(fpr, tpr, linewidth=4, label=n)
+plt.figure()
+for i, n in enumerate(models):
+    best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(i, df.iloc[:, 1:8], df.iloc[:, -1])
+    Y_pred = best_params.predict(X_test)
+    fpr, tpr, thresholds = roc_curve(Y_test, Y_pred, pos_label=1)
+    auc = roc_auc_score(Y_test, Y_pred)    
+    plt.plot(fpr, tpr, linewidth=4, label=n)
 
-#     print('The AUC for {} is {}'.format(n, auc))
-#     input('ready for next model?: ')
+    print('The AUC for {} is {}'.format(n, auc))
+    input('ready for next model?: ')
 
-#  #change arg 3 to get names for graph legend
+ #change arg 3 to get names for graph legend
 
-# plt.plot([0, 1], [0, 1], 'k--') 
-# plt.axis([0, 1, 0, 1])
-# plt.xlabel('False Positive Rate')
-# plt.ylabel('True Positive Rate')
-# plt.title('ROC Curve')
-# plt.legend()
-# plt.show()
+plt.plot([0, 1], [0, 1], 'k--') 
+plt.axis([0, 1, 0, 1])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.show()
 
 #plot SVM decision boundary-- figure this out for gridsearch
 best_params, X_train, X_test, Y_train, Y_test = ml_pipeline(1, df.iloc[:, 1:8], df.iloc[:, -1], variance=2)
