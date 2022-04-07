@@ -1,0 +1,140 @@
+---
+title: "Project_randFor"
+author: "Ayush Shetty"
+date: "4/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(caret)
+library(tidyverse)
+library(corrplot)
+library(car)
+library(lmtest)
+library(gmodels)
+library(MLmetrics)
+library(caTools)
+library(glmnet)
+library(tree) 
+library(rpart)
+library(ipred) 
+library(randomForest)
+library(gbm) 
+library(ROCR)
+```
+
+```{r}
+df = read.csv("/Users/ayush/Documents/Work/Duke/Spring 2022/Data science/Course project/preprocessed_model_data_ver2.csv")
+
+df$Athletic = as.factor(df$Athletic)
+
+df_reg = subset(df, select = -Athletic)
+
+df_class = subset(df, select = -avg_VO2)
+
+sample = sample.split(df_reg, SplitRatio = 0.8)
+dfR_train = subset(df_reg, sample == TRUE)
+dfR_test  = subset(df_reg, sample == FALSE)
+
+sample1 = sample.split(df_class, SplitRatio = 0.8)
+dfC_train = subset(df_class, sample1 == TRUE)
+dfC_test  = subset(df_class, sample1 == FALSE)
+
+```
+
+```{r}
+#Regression model
+randFor = randomForest(avg_VO2~., data = df_train, ntree = 500) #Random forest model
+randFor
+```
+
+
+```{r}
+plot(randFor)
+```
+
+```{r}
+which.min(randFor$mse) #Finding optimal number of trees required
+```
+
+
+```{r}
+tuner = tuneRF(subset(df_train, select = -avg_VO2), df_train$avg_VO2, #Optimizing to find mtry
+               stepFactor = .5,
+               plot=T,
+               ntreeTry = 479,
+               improve = 10000)
+```
+
+
+```{r}
+optRf = randomForest(avg_VO2~., data = df_train, mtry = 20, ntree = 479) # Optimal Random Forest model
+optRf
+```
+
+
+```{r}
+optPreds = predict(optRf, df_test)
+optPredDifference = (abs(optPreds - df_test$avg_VO2)/df_test$avg_VO2)*100
+mean(optPredDifference) #Percent difference in prediction
+
+MAE(optPreds, df_test$avg_VO2) # Test Mean Absolute Error
+```
+
+
+```{r}
+sum((df_test$avg_VO2-optPreds)^2) # Rss
+```
+
+
+```{r}
+R2_Score(optPreds, df_test$avg_VO2) # R2 value
+```
+
+```{r}
+#Classification
+randFor1 = randomForest(Athletic~., data = dfC_train, ntree = 500) #Random forest model classification
+randFor1
+```
+
+
+```{r}
+plot(randFor1)
+```
+
+
+```{r}
+which.min(randFor1$err.rate)
+```
+
+
+```{r}
+tuner1 = tuneRF(subset(dfC_train, select = -Athletic), dfC_train$Athletic, #Optimizing to find mtry
+               stepFactor = .5,
+               plot=T,
+               ntreeTry = 500,
+               improve = 0.3)
+```
+
+```{r}
+optRf1 = randomForest(Athletic~., data = dfC_train, mtry = 10, ntree = 500) #Optimal model
+optRf1
+```
+
+
+```{r}
+predC = predict(optRf1, dfC_test, type = 'class')
+
+eval = function(pred, test){
+  con = table(Actual = test, Predicted = pred)
+  errR = 1-sum(diag(con))/sum(con)
+  prec = con[2,2]/sum(con[,2])
+  rec = con[2,2]/(con[2,2] + con[2,1])
+  F1 = 2*(prec*rec)/(prec+rec)
+  
+  return(list(Confusion_Matrix = con, Error_rate = errR, F1_Score = F1, Precision = prec, Recall = rec))
+}
+
+eval(predC, dfC_test$Athletic) #Evaluating results
+```
+
